@@ -355,8 +355,8 @@ html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
 .hm-sys-more:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
 
 /* ── Bot-to-bot threads ────────────────────────────────────────────────── */
-.hm-at-group { display: grid; gap: 0.375rem; margin: 0.25rem 0; }
-.hm-at { width: min(88%, 40rem); margin: 0.25rem 0; }
+.hm-at-group { display: grid; justify-items: center; gap: 0.375rem; margin: 0.25rem 0; }
+.hm-at { width: min(88%, 40rem); margin: 0.25rem auto; align-self: center; }
 .hm-at:not([data-open]) { width: fit-content; max-width: min(88%, 40rem); }
 .hm-at-head {
   display: inline-flex; align-items: center; gap: 0.5rem; max-width: 100%;
@@ -2485,7 +2485,7 @@ export default {
     if (typeof ctx.rest === 'function') {
       startInboxPoller({
         rest: (path, opts) => ctx.rest(path, opts),
-        sessionId: () => host.state.focusedSessionId?.get?.() || host.state.activeSessionId?.get?.() || null,
+        sessionId: () => host.state.focusedStoredSessionId?.get?.() || null,
         onDispose: fn => ctx.onDispose(fn)
       })
       ctx.register({ id: 'inbox-strip', area: COMPOSER_AREAS.top, render: () => jsx(InboxStrip, {}) })

@@ -711,6 +711,72 @@ html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:las
 html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button']:not([type='submit']) { color: var(--ui-text-secondary); }
 html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !important; }
 
+/* ── Command approvals: same bubble, same capsules as questions ──────── */
+
+html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'] { max-width: min(100%, 36rem); align-self: flex-start; }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'] :is([data-slot='card-stack-surface'], [data-slot='card-stack-edge']) {
+  border: 0.0625rem solid var(--hm-in-stroke);
+  border-radius: var(--hm-r) var(--hm-r) var(--hm-r) var(--hm-tail);
+  background: var(--hm-in-bg);
+}
+/* Floating over the transcript it must be opaque: same grey, laid on the page colour. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'][data-approval-placement='floating'] [data-slot='card-stack-surface'] {
+  background: linear-gradient(var(--hm-in-bg), var(--hm-in-bg)), var(--ui-bg-primary, #fff);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
+}
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] { animation: hm-pop 0.42s var(--hm-spring) both; transform-origin: 0 100%; }
+/* Header: "Command" reads as the question, the way a question card does. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > div:first-child {
+  padding: 0.75rem 0.875rem 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ui-text-primary);
+}
+/* The command: a shaded code block with a visible scroll edge. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > pre {
+  margin: 0.5rem 0.875rem 0 !important;
+  max-height: 14rem;
+  padding: 0.625rem 0.75rem;
+  border: 0.0625rem solid var(--hm-in-stroke);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--ui-base) 5%, transparent);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  word-break: normal;
+  overflow-wrap: break-word;
+  scrollbar-width: thin;
+}
+/* Actions: Run first in your colour, the rest as quiet capsules. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] {
+  justify-content: flex-start;
+  gap: 0.375rem;
+  padding: 0.625rem 0.875rem 0.75rem;
+}
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-slot='button'] {
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+}
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-run] {
+  order: -2;
+  background: var(--hm-out-bg, var(--ui-accent));
+  color: var(--hm-out-ink, #fff);
+  box-shadow: 0 0.0625rem 0.125rem rgb(0 0 0 / 0.15);
+}
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] > :not([data-approval-run], [data-approval-deny]) { order: -1; }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-slot='button']:not([data-approval-run], [data-approval-deny]) {
+  border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 22%, transparent);
+  background: var(--ui-bg-primary, #fff);
+  color: var(--ui-text-primary);
+}
+/* Reject: plain text like Skip on questions, pushed right; turns red on hover. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-deny] { margin-left: auto; background: transparent; color: var(--ui-text-secondary) !important; }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-deny]:hover { color: var(--destructive, #d33) !important; background: color-mix(in srgb, var(--destructive, #d33) 8%, transparent); }
+/* Waiting on you, not typing: hide the typing bubble while an approval is open. */
+html[data-hm-style='bubbles']:has([data-slot='tool-approval-card']:not([aria-hidden])) :is([data-slot='aui_turn-activity'][data-state='active'], [data-slot='aui_response-loading']) { display: none; }
+html[data-hm-motion='off'] [data-slot='tool-approval-card'] { animation: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   html[data-hm] *, html[data-hm] *::before { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

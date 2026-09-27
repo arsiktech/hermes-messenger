@@ -300,6 +300,13 @@ html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div :is([dat
   border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r) !important;
 }
 
+/* App bug fix: Tailwind Typography's \`.prose img { margin: 2em 0 }\` beats the
+   image's \`m-0\` (same specificity, later in the sheet), so an inline image is
+   pushed 2em down inside its fixed-size frame and covers the next paragraph. */
+html[data-hm] :is([data-slot='aui_markdown-image'], [data-slot='aui_generated-image'], [data-slot='aui_zoomable-image']) img {
+  margin: 0;
+}
+
 /* ── Bubbles: the agent's ─────────────────────────────────────────────── */
 
 html[data-hm-style='bubbles'] ${BOT_BUBBLE} {

@@ -1,0 +1,10 @@
+{
+  "name": "hermes-messenger",
+  "label": "Hermes Messenger",
+  "description": "Read-only Bot Chat inbox feed for the Hermes Messenger desktop plugin.",
+  "icon": "Inbox",
+  "version": "0.3.0",
+  "tab": { "path": "/hermes-messenger", "hidden": true },
+  "entry": "dist/index.js",
+  "api": "inbox_api.py"
+}

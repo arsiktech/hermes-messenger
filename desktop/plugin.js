@@ -300,6 +300,32 @@ html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div :is([dat
   border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r) !important;
 }
 
+/* ── Live inbox strip ─────────────────────────────────────────────────── */
+.hm-inbox { margin: 0 0 0.5rem; border: 0.0625rem solid var(--hm-in-stroke, var(--ui-stroke-tertiary)); border-radius: 0.75rem; background: color-mix(in srgb, var(--ui-base) 4%, transparent); overflow: hidden; }
+.hm-inbox-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.375rem 0.75rem; border: 0; background: none; color: var(--ui-text-secondary); font: inherit; font-size: 0.75rem; line-height: 1.25rem; text-align: left; cursor: pointer; }
+.hm-inbox-head:hover { background: color-mix(in srgb, var(--ui-base) 5%, transparent); }
+.hm-inbox-head:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: -2px; }
+.hm-inbox-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #e0a526; }
+.hm-inbox-dot[data-busy] { background: #34a853; box-shadow: 0 0 0 0 rgba(52,168,83,.5); animation: hm-inbox-pulse 1.8s ease-out infinite; }
+@keyframes hm-inbox-pulse { to { box-shadow: 0 0 0 0.375rem rgba(52,168,83,0); } }
+html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
+.hm-inbox-title { flex: none; color: var(--ui-text-primary); font-weight: 600; }
+.hm-inbox-sum { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hm-inbox .hm-at-chev { margin-left: auto; }
+.hm-inbox[data-open] .hm-at-chev { transform: translateY(0.15rem) rotate(-135deg); }
+.hm-inbox-list { display: grid; gap: 0.125rem; max-height: min(24rem, 45vh); overflow-y: auto; overscroll-behavior: contain; padding: 0 0.5rem 0.625rem; scrollbar-width: thin; }
+.hm-inbox-item { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.375rem 0.25rem; border-top: 0.0625rem solid color-mix(in srgb, var(--ui-base) 7%, transparent); }
+.hm-inbox-pos { flex: none; width: 1.1rem; color: var(--ui-text-secondary); font-size: 0.6875rem; line-height: 1.25rem; text-align: right; font-variant-numeric: tabular-nums; }
+.hm-inbox-item[data-status='claimed'] .hm-inbox-pos { color: #34a853; }
+.hm-inbox-icon { flex: none; width: 1.1rem; font-size: 0.75rem; line-height: 1.25rem; text-align: center; }
+.hm-inbox-main { display: grid; min-width: 0; flex: 1; }
+.hm-inbox-line { display: flex; gap: 0.5rem; align-items: baseline; min-width: 0; font-size: 0.75rem; line-height: 1.25rem; }
+.hm-inbox-from { min-width: 0; overflow: hidden; color: var(--ui-text-primary); font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.hm-inbox-age { flex: none; margin-left: auto; color: var(--ui-text-secondary); font-variant-numeric: tabular-nums; }
+.hm-inbox-item[data-status='claimed'] .hm-inbox-age { color: #34a853; }
+.hm-inbox-preview { overflow: hidden; color: var(--ui-text-secondary); font-size: 0.75rem; line-height: 1.125rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hm-inbox-foot { padding: 0.375rem 0.25rem 0; color: var(--ui-text-tertiary); font-size: 0.6875rem; }
+
 /* ── System cards (cron reports, kanban alerts) ─────────────────────────── */
 [data-hm-sys] { align-items: flex-start !important; }
 [data-hm-sys] > :not(.hm-sys) { display: none !important; }
@@ -972,6 +998,14 @@ const LOCALES = {
     quotingFrom: who => `Quoting ${who}`,
     cancelReply: 'Cancel reply',
     scheduledJob: 'Scheduled job',
+    inboxTitle: 'Inbox',
+    inboxWaiting: n => `${n} waiting`,
+    inboxHandling: 'handling 1',
+    inboxOldest: a => `oldest ${a}`,
+    inboxAge: a => `waiting ${a}`,
+    inboxNow: a => `handling now · ${a}`,
+    inboxUnknown: 'Delivery',
+    inboxMedian: m => `Typical wait today: ${m} min. The bot takes these one at a time when this chat is idle.`,
     showMore: 'Show more',
     showLess: 'Show less',
     kb_blocked: 'Task blocked',
@@ -1024,6 +1058,14 @@ const LOCALES = {
     cancelReply: 'Отменить ответ',
     teammate: 'Коллега',
     scheduledJob: 'Задание по расписанию',
+    inboxTitle: 'Входящие',
+    inboxWaiting: n => `ждут: ${n}`,
+    inboxHandling: 'обрабатывается 1',
+    inboxOldest: a => `старшее ${a}`,
+    inboxAge: a => `ждёт ${a}`,
+    inboxNow: a => `обрабатывается · ${a}`,
+    inboxUnknown: 'Доставка',
+    inboxMedian: m => `Обычное ожидание сегодня: ${m} мин. Бот берёт их по одному, когда чат свободен.`,
     showMore: 'Показать полностью',
     showLess: 'Свернуть',
     kb_blocked: 'Задача заблокирована',
@@ -1771,6 +1813,124 @@ function ReplyBar() {
   })
 }
 
+// ─── Live inbox strip ───────────────────────────────────────────────────────
+// A bot takes Bot Chat deliveries (cron reports, teammate messages) one at a
+// time and only when its chat is idle, so they can wait many minutes unseen.
+// This strip shows that queue live above the composer of the chat it belongs
+// to. Read-only: the backend (dashboard/inbox_api.py) never touches records.
+
+const $inbox = atom(null) // { sessionId, items, medianWait } | null
+const $inboxOpen = atom(false)
+
+function inboxAge(seconds) {
+  if (!seconds) return ''
+  const m = Math.max(0, Math.round((Date.now() / 1000 - seconds) / 60))
+  return m < 1 ? '<1m' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`
+}
+
+function startInboxPoller({ rest, sessionId, onDispose }) {
+  let timer = 0
+  let stopped = false
+  let failures = 0
+  const tick = async () => {
+    if (stopped) return
+    const sid = sessionId()
+    if (sid && !document.hidden) {
+      try {
+        const r = await rest('/inbox', { timeoutMs: 8000 })
+        failures = 0
+        const mine = r?.bot_chat_session_id && r.bot_chat_session_id === sid
+        const items = mine ? (r.items || []).filter(i => !i.session_id || i.session_id === sid) : []
+        $inbox.set(mine ? { sessionId: sid, items, medianWait: r.median_wait_min_24h } : null)
+      } catch {
+        failures++
+        $inbox.set(null)
+      }
+    } else if (!sid) {
+      $inbox.set(null)
+    }
+    // Backend missing (plugin not enabled) → back off instead of hammering.
+    timer = setTimeout(tick, failures ? Math.min(60000, 5000 * 2 ** failures) : 5000)
+  }
+  tick()
+  const vis = () => !document.hidden && (clearTimeout(timer), tick())
+  document.addEventListener('visibilitychange', vis)
+  onDispose(() => {
+    stopped = true
+    clearTimeout(timer)
+    document.removeEventListener('visibilitychange', vis)
+    $inbox.set(null)
+  })
+}
+
+function InboxStrip() {
+  const t = usePluginI18n(ID)
+  const box = useValue($inbox)
+  const open = useValue($inboxOpen)
+  if (!box || !box.items.length) return null
+  const handling = box.items.find(i => i.status === 'claimed')
+  const waiting = box.items.filter(i => i.status === 'queued')
+  const oldest = waiting[0]
+  const kindIcon = k => (k === 'cron' ? '⏱' : k === 'agent' ? '🤖' : k === 'kanban' ? '▦' : '✉')
+  const summary = [
+    waiting.length ? t('inboxWaiting', waiting.length) : null,
+    handling ? t('inboxHandling') : null,
+    oldest ? t('inboxOldest', inboxAge(oldest.created_at)) : null
+  ].filter(Boolean).join(' · ')
+  return jsxs('div', {
+    className: 'hm-inbox',
+    'data-open': open ? '' : undefined,
+    children: [
+      jsxs('button', {
+        type: 'button',
+        className: 'hm-inbox-head',
+        'aria-expanded': String(open),
+        onClick: () => $inboxOpen.set(!open),
+        children: [
+          jsx('span', { className: 'hm-inbox-dot', 'data-busy': handling ? '' : undefined }),
+          jsx('span', { className: 'hm-inbox-title', children: t('inboxTitle') }),
+          jsx('span', { className: 'hm-inbox-sum', children: summary }),
+          jsx('span', { className: 'hm-at-chev', 'aria-hidden': 'true' })
+        ]
+      }),
+      open &&
+        jsxs('div', {
+          className: 'hm-inbox-list',
+          children: [
+            ...box.items.map((i, n) =>
+              jsxs('div', {
+                className: 'hm-inbox-item',
+                'data-status': i.status,
+                key: i.id,
+                children: [
+                  jsx('span', { className: 'hm-inbox-pos', children: i.status === 'claimed' ? '▶' : String(n + (handling ? 0 : 1)) }),
+                  jsx('span', { className: 'hm-inbox-icon', children: kindIcon(i.kind) }),
+                  jsxs('div', {
+                    className: 'hm-inbox-main',
+                    children: [
+                      jsxs('div', {
+                        className: 'hm-inbox-line',
+                        children: [
+                          jsx('span', { className: 'hm-inbox-from', children: i.from || t('inboxUnknown') }),
+                          jsx('span', {
+                            className: 'hm-inbox-age',
+                            children: i.status === 'claimed' ? t('inboxNow', inboxAge(i.claimed_at)) : t('inboxAge', inboxAge(i.created_at))
+                          })
+                        ]
+                      }),
+                      jsx('div', { className: 'hm-inbox-preview', children: i.preview })
+                    ]
+                  })
+                ]
+              })
+            ),
+            box.medianWait != null && jsx('div', { className: 'hm-inbox-foot', children: t('inboxMedian', Math.round(box.medianWait)) })
+          ]
+        })
+    ]
+  })
+}
+
 // ─── Bot-to-bot threads (SDK-free: also loaded by the visual test fixture) ──
 // A teammate conversation shows as ONE compact row ("Hermes ⇄ Quest · 2
 // messages · replied"); a tap opens it as a mini group chat of bubbles.
@@ -2320,6 +2480,16 @@ export default {
       onDispose: fn => ctx.onDispose(fn)
     })
     ctx.register({ id: 'reply-bar', area: COMPOSER_AREAS.top, render: () => jsx(ReplyBar, {}) })
+
+    // Live inbox: what is still waiting for this bot's Bot Chat.
+    if (typeof ctx.rest === 'function') {
+      startInboxPoller({
+        rest: (path, opts) => ctx.rest(path, opts),
+        sessionId: () => host.state.focusedSessionId?.get?.() || host.state.activeSessionId?.get?.() || null,
+        onDispose: fn => ctx.onDispose(fn)
+      })
+      ctx.register({ id: 'inbox-strip', area: COMPOSER_AREAS.top, render: () => jsx(InboxStrip, {}) })
+    }
 
     // Cron reports and kanban alerts: system cards, not your own green bubble.
     createSystemCards({

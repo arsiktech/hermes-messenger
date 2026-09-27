@@ -161,6 +161,110 @@ html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-sl
   color: var(--hm-out-bg);
 }
 
+/* Previewed files: the card replaces the path chip. */
+html[data-hm] [data-hm-previewed] { display: none !important; }
+
+html[data-hm] .hm-att {
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  width: min(18rem, 100%);
+  overflow: hidden;
+  border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 28%, transparent);
+  border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r);
+  background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 9%, var(--ui-bg, transparent));
+  box-shadow: 0 0.0625rem 0.125rem rgb(0 0 0 / 0.12);
+  animation: hm-pop 0.42s var(--hm-spring) both;
+  white-space: normal;
+}
+html[data-hm] .hm-att[data-kind='image'] { width: auto; max-width: min(18rem, 100%); }
+html[data-hm] .hm-att-media {
+  display: block;
+  width: 100%;
+  max-height: 16rem;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--ui-base, #000) 6%, transparent);
+}
+html[data-hm] .hm-att[data-kind='image'] .hm-att-media { width: auto; max-width: 100%; min-width: 8rem; cursor: zoom-in; object-fit: contain; }
+html[data-hm] .hm-att[data-kind='audio'] .hm-att-media { height: 2.5rem; margin: 0.5rem 0.5rem 0; width: calc(100% - 1rem); background: none; }
+html[data-hm] .hm-att-text {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  max-height: 7.5rem;
+  overflow: hidden;
+  font: 0.6875rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ui-text-secondary, inherit);
+  white-space: pre;
+}
+html[data-hm] .hm-att-text > div { overflow: hidden; text-overflow: ellipsis; }
+html[data-hm] .hm-att-text {
+  -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent);
+  mask-image: linear-gradient(to bottom, #000 65%, transparent);
+  border-bottom: 0.0625rem solid color-mix(in srgb, var(--ui-base, #000) 8%, transparent);
+}
+html[data-hm] .hm-att-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.5625rem 0.5625rem;
+  border: 0;
+  background: none;
+  color: var(--ui-text-primary, var(--foreground));
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+html[data-hm] .hm-att-foot:hover { background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 8%, transparent); }
+html[data-hm] .hm-att-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  background: var(--hm-out-bg, var(--ui-accent));
+  color: var(--hm-out-ink, #fff);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+html[data-hm] .hm-att[data-kind='image'] .hm-att-badge,
+html[data-hm] .hm-att[data-kind='video'] .hm-att-badge { width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; font-size: 0.5rem; }
+html[data-hm] .hm-att-names { display: grid; min-width: 0; gap: 0.0625rem; }
+html[data-hm] .hm-att-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+/* Type colours, like a file manager: documents red, sheets green, archives amber, code slate. */
+html[data-hm] .hm-att[data-ext='pdf'] .hm-att-badge { background: #e5484d; color: #fff; }
+html[data-hm] .hm-att:is([data-ext='xlsx'], [data-ext='xls'], [data-ext='csv'], [data-ext='numbers']) .hm-att-badge { background: #30a46c; color: #fff; }
+html[data-hm] .hm-att:is([data-ext='zip'], [data-ext='gz'], [data-ext='tar'], [data-ext='dmg'], [data-ext='7z']) .hm-att-badge { background: #f5a524; color: #1a1a1a; }
+html[data-hm] .hm-att:is([data-ext='doc'], [data-ext='docx'], [data-ext='pages']) .hm-att-badge { background: #2f6fed; color: #fff; }
+html[data-hm] .hm-att[data-kind='text'] .hm-att-badge { background: #5b6472; color: #fff; }
+html[data-hm] .hm-att-meta { font-size: 0.6875rem; color: var(--ui-text-tertiary, #888); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+html[data-hm] .hm-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: rgb(0 0 0 / 0.72);
+  backdrop-filter: blur(0.5rem);
+  cursor: zoom-out;
+  animation: hm-fade 0.2s var(--hm-ease) both;
+}
+html[data-hm] .hm-lightbox img { max-width: 100%; max-height: 100%; border-radius: 0.75rem; box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.4); }
+@keyframes hm-fade { from { opacity: 0; } }
+
 /* Image attachments: thumbnails right-aligned with the bubble's corner shape. */
 html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-slot='aui_embedded-images'] {
   justify-content: flex-end;
@@ -632,6 +736,176 @@ function createMotion(ctx) {
   }
 }
 
+// ─── Attachment previews (SDK-free: also loaded by the visual test fixture) ─
+// The app shows an attached file as a path chip. Like Telegram/ChatGPT, turn it
+// into the file itself: image thumbnail, playable video/audio, the first lines
+// of a text/code file, or a type card with size. The original chip stays in the
+// DOM (hidden) so the app keeps owning it; if a file can't be read (remote
+// gateway, moved, too big) the chip simply stays visible.
+
+const ATTACH_CHIP = "[data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip'][data-ref='file']"
+const KINDS = {
+  image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif', 'heic'],
+  video: ['mp4', 'mov', 'm4v', 'webm'],
+  audio: ['mp3', 'm4a', 'wav', 'ogg', 'aac', 'flac', 'opus'],
+  text: ['txt', 'md', 'json', 'yaml', 'yml', 'toml', 'csv', 'log', 'py', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'swift',
+    'cs', 'go', 'rs', 'java', 'kt', 'rb', 'sh', 'zsh', 'sql', 'html', 'css', 'xml', 'ini', 'env', 'c', 'h', 'cpp']
+}
+const kindOf = ext => Object.keys(KINDS).find(k => KINDS[k].includes(ext)) || 'file'
+
+function formatBytes(n) {
+  if (!(n >= 0)) return ''
+  const u = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++ }
+  return `${n >= 10 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`
+}
+
+async function thumbnailOf(dataUrl, maxPx = 640) {
+  try {
+    const img = new Image()
+    img.src = dataUrl
+    await img.decode()
+    const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight))
+    if (scale === 1) return { src: dataUrl, w: img.naturalWidth, h: img.naturalHeight }
+    const c = document.createElement('canvas')
+    c.width = Math.round(img.naturalWidth * scale)
+    c.height = Math.round(img.naturalHeight * scale)
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+    return { src: c.toDataURL('image/jpeg', 0.86), w: img.naturalWidth, h: img.naturalHeight }
+  } catch {
+    return { src: dataUrl, w: 0, h: 0 }
+  }
+}
+
+function openLightbox(src, alt) {
+  const box = document.createElement('div')
+  box.className = 'hm-lightbox'
+  const img = document.createElement('img')
+  img.src = src
+  img.alt = alt
+  box.append(img)
+  const close = () => { box.remove(); window.removeEventListener('keydown', onKey, true) }
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close() } }
+  box.addEventListener('click', close)
+  window.addEventListener('keydown', onKey, true)
+  document.body.append(box)
+}
+
+function createAttachmentPreviews({ bridge, cwd, onDispose }) {
+  const cache = new Map()
+
+  const candidates = id => {
+    if (id.startsWith('/')) return [id]
+    const base = (cwd() || '').replace(/\/+$/, '')
+    const home = (base.match(/^\/(?:Users|home)\/[^/]+/) || [])[0]
+    const rel = id.replace(/^~\//, '')
+    return [...new Set([id.startsWith('~/') ? null : base && `${base}/${rel}`, home && `${home}/${rel}`].filter(Boolean))]
+  }
+
+  const load = async id => {
+    const name = id.split('/').pop() || id
+    const ext = (name.includes('.') ? name.split('.').pop() : '').toLowerCase()
+    const kind = kindOf(ext)
+    for (const path of candidates(id)) {
+      try {
+        const info = await bridge.readFileText(path)
+        const out = { path: info?.path || path, name, ext, kind, size: info?.byteSize }
+        if (kind === 'image') out.full = await bridge.readFileDataUrl(out.path)
+        if (kind === 'text' && info && !info.binary) out.lines = String(info.text || '').split('\n').slice(0, 7).join('\n')
+        return out
+      } catch (e) {
+        // EFBIG still means the file exists; media can stream without a size cap.
+        if (/EFBIG|too large/i.test(String(e?.message || e)) && (kind === 'video' || kind === 'audio')) {
+          return { path, name, ext, kind }
+        }
+      }
+    }
+    return null
+  }
+
+  const build = async (chip, f) => {
+    const card = document.createElement('div')
+    card.className = 'hm-att'
+    card.dataset.kind = f.kind
+    card.title = f.path
+
+    const folder = f.path.split('/').slice(-2, -1)[0] || ''
+    const meta = [f.ext.toUpperCase(), formatBytes(f.size), folder].filter(Boolean).join(' · ')
+
+    if (f.kind === 'image' && f.full) {
+      const t = await thumbnailOf(f.full)
+      const img = document.createElement('img')
+      img.className = 'hm-att-media'
+      img.src = t.src
+      img.alt = f.name
+      img.draggable = false
+      if (t.w && t.h) img.style.aspectRatio = `${t.w} / ${t.h}`
+      img.addEventListener('click', () => openLightbox(f.full, f.name))
+      card.append(img)
+    } else if (f.kind === 'video' || f.kind === 'audio') {
+      const m = document.createElement(f.kind)
+      m.className = 'hm-att-media'
+      m.controls = true
+      m.preload = 'metadata'
+      m.src = `hermes-media://stream/${encodeURIComponent(f.path)}${f.kind === 'video' ? '#t=0.1' : ''}`
+      card.append(m)
+    } else if (f.kind === 'text' && f.lines) {
+      const pre = document.createElement('div')
+      pre.className = 'hm-att-text'
+      for (const line of f.lines.split('\n').filter((l, i, a) => l.trim() || (i > 0 && a[i - 1].trim())).slice(0, 6)) {
+        const row = document.createElement('div')
+        row.textContent = line || ' '
+        pre.append(row)
+      }
+      card.append(pre)
+    }
+    card.dataset.ext = f.ext
+
+    const foot = document.createElement('button')
+    foot.type = 'button'
+    foot.className = 'hm-att-foot'
+    foot.title = 'Show in Finder'
+    foot.innerHTML = '<span class="hm-att-badge"></span><span class="hm-att-names"><span class="hm-att-name"></span><span class="hm-att-meta"></span></span>'
+    foot.querySelector('.hm-att-badge').textContent = (f.ext || '•').slice(0, 4).toUpperCase()
+    foot.querySelector('.hm-att-name').textContent = f.name
+    foot.querySelector('.hm-att-meta').textContent = meta
+    foot.addEventListener('click', () => bridge.revealPath?.(f.path))
+    card.append(foot)
+
+    chip.after(card)
+    chip.setAttribute('data-hm-previewed', '')
+  }
+
+  const scan = () => {
+    for (const chip of document.querySelectorAll(`${ATTACH_CHIP}:not([data-hm-previewed]):not([data-hm-pending])`)) {
+      const id = chip.getAttribute('data-directive-id') || chip.getAttribute('title') || ''
+      if (!id) continue
+      chip.setAttribute('data-hm-pending', '')
+      if (!cache.has(id)) cache.set(id, load(id))
+      cache.get(id)
+        .then(f => (f && chip.isConnected ? build(chip, f) : null))
+        .catch(() => {})
+        .finally(() => chip.removeAttribute('data-hm-pending'))
+    }
+  }
+
+  let frame = 0
+  const observer = new MutationObserver(() => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(scan)
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+  scan()
+  onDispose(() => {
+    observer.disconnect()
+    cancelAnimationFrame(frame)
+    for (const el of document.querySelectorAll('.hm-att, .hm-lightbox')) el.remove()
+    for (const el of document.querySelectorAll('[data-hm-previewed]')) el.removeAttribute('data-hm-previewed')
+  })
+}
+// ─── end attachment previews ────────────────────────────────────────────────
+
 // ─── UI ─────────────────────────────────────────────────────────────────────
 
 function Row({ label, hint, children, inline }) {
@@ -789,6 +1063,14 @@ export default {
     ctx.addEventListener(window, 'blur', () => setPeek(false))
 
     createMotion(ctx)
+
+    if (window.hermesDesktop?.readFileText) {
+      createAttachmentPreviews({
+        bridge: window.hermesDesktop,
+        cwd: () => host.state.cwd?.get?.() || '',
+        onDispose: fn => ctx.onDispose(fn)
+      })
+    }
 
     // Busy state drives the typing bubble.
     const $busy = host.state.busy

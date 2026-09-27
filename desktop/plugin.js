@@ -18,6 +18,7 @@
 import {
   atom,
   Codicon,
+  COMPOSER_AREAS,
   haptic,
   host,
   KEYBINDS_AREA,
@@ -711,6 +712,70 @@ html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:las
 html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button']:not([type='submit']) { color: var(--ui-text-secondary); }
 html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !important; }
 
+/* ── Replies & quotes ─────────────────────────────────────────────────── */
+
+.hm-reply-btn {
+  position: fixed; z-index: 60; display: grid; place-items: center;
+  width: 1.75rem; height: 1.75rem; padding: 0; border: 0.0625rem solid var(--hm-in-stroke, rgb(0 0 0 / 0.08));
+  border-radius: 999px; background: var(--ui-bg-primary, #fff); color: var(--ui-text-secondary, #666);
+  box-shadow: 0 0.125rem 0.5rem rgb(0 0 0 / 0.12); cursor: pointer;
+  opacity: 0; pointer-events: none; transform: scale(0.85);
+  transition: opacity 0.12s ease, transform 0.18s var(--hm-spring, ease);
+}
+.hm-reply-btn[data-show] { opacity: 1; pointer-events: auto; transform: none; }
+.hm-reply-btn:hover { color: var(--hm-out-bg, var(--ui-accent)); }
+.hm-quote-pill {
+  position: fixed; z-index: 61; display: inline-flex; align-items: center; gap: 0.375rem;
+  height: 2rem; padding: 0 0.75rem; border: 0; border-radius: 999px;
+  background: var(--hm-out-bg, var(--ui-accent)); color: var(--hm-out-ink, #fff);
+  font: 500 0.8125rem/1 inherit; box-shadow: 0 0.25rem 0.875rem rgb(0 0 0 / 0.2); cursor: pointer;
+  opacity: 0; pointer-events: none; transform: translate(-50%, -100%) scale(0.9);
+  transition: opacity 0.12s ease, transform 0.18s var(--hm-spring, ease);
+}
+.hm-quote-pill[data-below] { transform: translate(-50%, 0) scale(0.9); }
+.hm-quote-pill:not([data-show]) { transition-duration: 0s; }
+.hm-quote-pill[data-show] { opacity: 1; pointer-events: auto; transform: translate(-50%, -100%); }
+.hm-quote-pill[data-below][data-show] { transform: translate(-50%, 0); }
+
+/* The bar above the input: accent rule, who, one-line excerpt, ✕. */
+.hm-replybar {
+  display: flex; align-items: center; gap: 0.625rem; margin: 0.25rem 0.5rem 0.125rem;
+  padding: 0.375rem 0.25rem 0.375rem 0.625rem;
+  border-left: 0.1875rem solid var(--hm-out-bg, var(--ui-accent));
+  border-radius: 0.375rem; background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 7%, transparent);
+  animation: hm-fade 0.18s ease both;
+}
+.hm-replybar-icon { display: grid; color: var(--hm-out-bg, var(--ui-accent)); }
+.hm-replybar-body { flex: 1; min-width: 0; }
+.hm-replybar-who { font-size: 0.75rem; font-weight: 600; line-height: 1.1rem; color: var(--hm-out-bg, var(--ui-accent)); }
+.hm-replybar-text { overflow: hidden; font-size: 0.8125rem; line-height: 1.2rem; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-text-secondary); }
+.hm-replybar-x {
+  display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ui-text-tertiary); cursor: pointer;
+}
+.hm-replybar-x:hover { background: color-mix(in srgb, var(--ui-base) 8%, transparent); color: var(--ui-text-primary); }
+
+/* A sent reply: Telegram-style quote card at the top of your bubble. */
+.hm-quote {
+  display: block; margin: 0 0 0.375rem; padding: 0.25rem 0.5rem 0.3125rem 0.5625rem;
+  border-left: 0.1875rem solid currentColor; border-radius: 0.375rem;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.8125rem; line-height: 1.25rem; cursor: pointer; text-align: left;
+}
+.hm-quote:hover { background: color-mix(in srgb, currentColor 18%, transparent); }
+.hm-quote:focus-visible { outline: 0.125rem solid currentColor; outline-offset: 0.125rem; }
+.hm-quote-who { display: block; font-weight: 600; font-size: 0.75rem; }
+.hm-quote-text {
+  display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  white-space: normal; opacity: 0.95;
+}
+[data-hm-hidden] { display: none !important; }
+:is(${BUBBLES})[data-hm-flash] { animation: hm-flash 1.4s ease both; }
+@keyframes hm-flash {
+  0%, 35% { box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 45%, transparent); }
+  100% { box-shadow: 0 0 0 0.25rem transparent; }
+}
+
 /* ── Command approvals: same bubble, same capsules as questions ──────── */
 
 html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'] { max-width: min(100%, 36rem); align-self: flex-start; }
@@ -814,7 +879,14 @@ const LOCALES = {
     chipTip: 'Messenger: chat style & noise',
     cycle: 'Messenger: cycle noise (All → Calm → Results)',
     toggleStyle: 'Messenger: toggle bubbles',
-    toast: level => `Showing: ${level}`
+    toast: level => `Showing: ${level}`,
+    reply: 'Reply',
+    quote: 'Quote',
+    you: 'You',
+    agent: 'Agent',
+    replyingTo: who => `Replying to ${who}`,
+    quotingFrom: who => `Quoting ${who}`,
+    cancelReply: 'Cancel reply'
   },
   ru: {
     name: 'Мессенджер',
@@ -841,7 +913,14 @@ const LOCALES = {
     chipTip: 'Мессенджер: стиль и шум',
     cycle: 'Мессенджер: уровень шума (Всё → Тихо → Итоги)',
     toggleStyle: 'Мессенджер: включить/выключить пузыри',
-    toast: level => `Показываю: ${level}`
+    toast: level => `Показываю: ${level}`,
+    reply: 'Ответить',
+    quote: 'Цитировать',
+    you: 'Вы',
+    agent: 'Агент',
+    replyingTo: who => `Ответ: ${who}`,
+    quotingFrom: who => `Цитата: ${who}`,
+    cancelReply: 'Отменить ответ'
   }
 }
 
@@ -849,6 +928,7 @@ const LOCALES = {
 
 let $settings = atom({ ...DEFAULTS })
 let save = () => {}
+const $reply = atom(null)
 
 function update(patch) {
   const next = { ...$settings.get(), ...patch }
@@ -1230,6 +1310,226 @@ function createAttachmentPreviews({ bridge, cwd, onDispose }) {
 }
 // ─── end attachment previews ────────────────────────────────────────────────
 
+// ─── Replies & quotes (SDK-free: also loaded by the visual test fixture) ────
+// Messenger-style replies: hover a bubble and click ↩, or select text inside it
+// and click "Quote". The reply rides on the message itself, in the same
+// `[Replying to …: "…"]` form the gateway uses for Telegram replies, so the
+// agent reads it exactly like a Telegram reply. The transcript renders it back
+// as a quote card above your text; clicking the card jumps to the original.
+
+const REPLY_RE = /^\s*\[Replying to (your|my) message: "([\s\S]*?)"\]\n\n/
+const QUOTE_MAX = 1200
+const EXCERPT_MAX = 280
+const REPLY_SVG = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5 2.5 7.5l4 4"/><path d="M2.5 7.5h6.5a4.5 4.5 0 0 1 4.5 4.5v.5"/></svg>'
+
+function replyWire({ whose, text }) {
+  const clean = String(text).replace(/\r/g, '').replace(/\n{2,}/g, '\n').trim()
+  return `[Replying to ${whose} message: "${clean}"]\n\n`
+}
+
+function bubbleText(bubble) {
+  const clone = bubble.cloneNode(true)
+  for (const el of clone.querySelectorAll('.hm-quote, .hm-att, button, [data-hm-hidden]')) el.remove()
+  return clone.textContent.replace(/\s+/g, ' ').trim()
+}
+
+const clipText = (s, n) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
+const elementOf = node => (node && node.nodeType === 1 ? node : node?.parentElement) || null
+
+function createReplies({ setReply, label, onDispose }) {
+  const whoseOf = bubble => (bubble.closest("[data-slot='aui_user-message-root']") ? 'my' : 'your')
+
+  // Hover ↩ button: one floating element that follows the hovered bubble.
+  const btn = document.createElement('button')
+  btn.type = 'button'
+  btn.className = 'hm-reply-btn'
+  btn.setAttribute('aria-label', label('reply'))
+  btn.innerHTML = REPLY_SVG
+
+  const pill = document.createElement('button')
+  pill.type = 'button'
+  pill.className = 'hm-quote-pill'
+  pill.innerHTML = REPLY_SVG
+  const pillText = document.createElement('span')
+  pillText.textContent = label('quote')
+  pill.append(pillText)
+  document.body.append(btn, pill)
+
+  let hovered = null
+  let hideTimer = 0
+  const hideBtn = () => {
+    btn.removeAttribute('data-show')
+    hovered = null
+  }
+  const showBtn = bubble => {
+    clearTimeout(hideTimer)
+    hovered = bubble
+    const r = bubble.getBoundingClientRect()
+    const size = 28
+    const left = whoseOf(bubble) === 'my' ? r.left - size - 6 : r.right + 6
+    btn.style.left = `${Math.round(Math.max(4, Math.min(left, innerWidth - size - 4)))}px`
+    btn.style.top = `${Math.round(Math.max(4, r.bottom - size - 2))}px`
+    btn.setAttribute('data-show', '')
+  }
+  const onOver = e => {
+    const el = elementOf(e.target)
+    if (!el) return
+    if (btn.contains(el)) {
+      clearTimeout(hideTimer)
+      return
+    }
+    const bubble = el.closest(BUBBLES)
+    if (bubble && pill.hasAttribute('data-show')) return
+    if (bubble) {
+      showBtn(bubble)
+    } else if (hovered) {
+      clearTimeout(hideTimer)
+      hideTimer = setTimeout(hideBtn, 250)
+    }
+  }
+  btn.addEventListener('click', () => {
+    if (!hovered) return
+    const text = clipText(bubbleText(hovered), EXCERPT_MAX)
+    if (text) setReply({ kind: 'reply', whose: whoseOf(hovered), text })
+    hideBtn()
+  })
+
+  // Select text inside one bubble → a "Quote" pill above the selection.
+  let quoteFrom = null
+  const hidePill = () => {
+    pill.removeAttribute('data-show')
+    quoteFrom = null
+  }
+  const checkSelection = () => {
+    const sel = document.getSelection()
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return hidePill()
+    const a = elementOf(sel.anchorNode)?.closest(BUBBLES)
+    const f = elementOf(sel.focusNode)?.closest(BUBBLES)
+    const text = sel.toString().trim()
+    if (!a || a !== f || !text) return hidePill()
+    const r = sel.getRangeAt(0).getBoundingClientRect()
+    const below = r.top < 56
+    pill.style.left = `${Math.round(r.left + r.width / 2)}px`
+    pill.style.top = `${Math.round(below ? r.bottom + 10 : r.top - 10)}px`
+    pill.toggleAttribute('data-below', below)
+    quoteFrom = { kind: 'quote', whose: whoseOf(a), text: clipText(text, QUOTE_MAX) }
+    hideBtn()
+    pill.setAttribute('data-show', '')
+  }
+  const onUp = () => setTimeout(checkSelection, 0)
+  const onKeyUp = e => e.shiftKey && onUp()
+  const onSelChange = () => {
+    const s = document.getSelection()
+    if (!s || s.isCollapsed) hidePill()
+  }
+  pill.addEventListener('mousedown', e => e.preventDefault())
+  pill.addEventListener('click', () => {
+    if (!quoteFrom) return
+    setReply(quoteFrom)
+    document.getSelection()?.removeAllRanges()
+    hidePill()
+  })
+  const onScroll = () => {
+    hideBtn()
+    hidePill()
+  }
+
+  // Sent replies: strip the wire prefix from your bubble and show a quote card.
+  const renderQuote = span => {
+    const m = REPLY_RE.exec(span.textContent)
+    if (!m) return
+    let remaining = m[0].length
+    const walker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n && remaining > 0; n = walker.nextNode()) {
+      const take = Math.min(n.data.length, remaining)
+      remaining -= take
+      n.data = n.data.slice(take)
+      if (!n.data) {
+        const box = n.parentElement?.closest('code, pre')
+        if (box && span.contains(box)) box.setAttribute('data-hm-hidden', '')
+      }
+    }
+    if (span.previousElementSibling?.classList.contains('hm-quote')) return
+    const card = document.createElement('span')
+    card.className = 'hm-quote'
+    card.setAttribute('role', 'button')
+    card.tabIndex = 0
+    card.dataset.hmQuote = m[2]
+    const who = document.createElement('span')
+    who.className = 'hm-quote-who'
+    who.textContent = label(m[1] === 'my' ? 'you' : 'agent')
+    const body = document.createElement('span')
+    body.className = 'hm-quote-text'
+    body.textContent = m[2]
+    card.append(who, body)
+    span.before(card)
+  }
+  const renderAll = () => {
+    for (const span of document.querySelectorAll("[data-slot='aui_user-message-root'] [data-slot='aui_user-message-text']")) {
+      renderQuote(span)
+    }
+  }
+
+  // Click a quote card → scroll to the original message and flash it.
+  const jump = card => {
+    const q = card.dataset.hmQuote.replace(/\s+/g, ' ').replace(/…$/, '').trim().slice(0, 60)
+    if (!q) return
+    const earlier = [...document.querySelectorAll(BUBBLES)].filter(
+      b => !b.contains(card) && b.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING && bubbleText(b).includes(q)
+    )
+    const target = earlier.at(-1)
+    if (!target) return
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    target.removeAttribute('data-hm-flash')
+    void target.offsetWidth
+    target.setAttribute('data-hm-flash', '')
+    setTimeout(() => target.removeAttribute('data-hm-flash'), 1500)
+  }
+  const onClick = e => {
+    const card = elementOf(e.target)?.closest('.hm-quote')
+    if (card) jump(card)
+  }
+  const onKey = e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof Element && e.target.matches('.hm-quote')) {
+      e.preventDefault()
+      jump(e.target)
+    }
+  }
+
+  let frame = 0
+  const observer = new MutationObserver(() => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(renderAll)
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+  renderAll()
+
+  document.addEventListener('pointerover', onOver)
+  document.addEventListener('mouseup', onUp)
+  document.addEventListener('keyup', onKeyUp)
+  document.addEventListener('selectionchange', onSelChange)
+  document.addEventListener('click', onClick)
+  document.addEventListener('keydown', onKey)
+  window.addEventListener('scroll', onScroll, true)
+
+  onDispose(() => {
+    observer.disconnect()
+    cancelAnimationFrame(frame)
+    clearTimeout(hideTimer)
+    document.removeEventListener('pointerover', onOver)
+    document.removeEventListener('mouseup', onUp)
+    document.removeEventListener('keyup', onKeyUp)
+    document.removeEventListener('selectionchange', onSelChange)
+    document.removeEventListener('click', onClick)
+    document.removeEventListener('keydown', onKey)
+    window.removeEventListener('scroll', onScroll, true)
+    btn.remove()
+    pill.remove()
+    for (const card of document.querySelectorAll('.hm-quote')) card.remove()
+  })
+}
+// ─── end replies ────────────────────────────────────────────────────────────
+
 // ─── UI ─────────────────────────────────────────────────────────────────────
 
 function Row({ label, hint, children, inline }) {
@@ -1326,6 +1626,33 @@ function ChipLabel() {
   })
 }
 
+function ReplyBar() {
+  const t = usePluginI18n(ID)
+  const r = useValue($reply)
+  if (!r) return null
+  const who = t(r.whose === 'my' ? 'you' : 'agent')
+  return jsxs('div', {
+    className: 'hm-replybar',
+    children: [
+      jsx('span', { className: 'hm-replybar-icon', dangerouslySetInnerHTML: { __html: REPLY_SVG } }),
+      jsxs('div', {
+        className: 'hm-replybar-body',
+        children: [
+          jsx('div', { className: 'hm-replybar-who', children: t(r.kind === 'quote' ? 'quotingFrom' : 'replyingTo', who) }),
+          jsx('div', { className: 'hm-replybar-text', children: r.text })
+        ]
+      }),
+      jsx('button', {
+        type: 'button',
+        className: 'hm-replybar-x',
+        'aria-label': t('cancelReply'),
+        onClick: () => $reply.set(null),
+        children: jsx(Codicon, { name: 'close', size: '0.8125rem' })
+      })
+    ]
+  })
+}
+
 // ─── Plugin ─────────────────────────────────────────────────────────────────
 
 export default {
@@ -1395,6 +1722,38 @@ export default {
         onDispose: fn => ctx.onDispose(fn)
       })
     }
+
+    // Replies & quotes: hover ↩ / select → Quote, a bar above the input, and
+    // the reply prepended on send through the official composer middleware.
+    createReplies({
+      label: key => t(key),
+      setReply: r => {
+        $reply.set(r)
+        haptic('selection')
+        host.composer?.focus?.(null)
+      },
+      onDispose: fn => ctx.onDispose(fn)
+    })
+    ctx.register({ id: 'reply-bar', area: COMPOSER_AREAS.top, render: () => jsx(ReplyBar, {}) })
+    ctx.register({
+      id: 'reply-send',
+      area: COMPOSER_AREAS.middleware,
+      data: {
+        handler: draft => {
+          const r = $reply.get()
+          if (!r || !draft?.text?.trim()) return draft
+          $reply.set(null)
+          return { ...draft, text: replyWire(r) + draft.text }
+        }
+      }
+    })
+    const clearReply = () => $reply.set(null)
+    for (const $a of [host.state.focusedSessionId, host.state.activeSessionId]) {
+      if ($a?.listen) ctx.onDispose($a.listen(clearReply))
+    }
+    ctx.addEventListener(window, 'keydown', e => {
+      if (e.key === 'Escape' && $reply.get() && !document.querySelector('[role="dialog"], [role="menu"]')) clearReply()
+    })
 
     // Busy state drives the typing bubble.
     const $busy = host.state.busy

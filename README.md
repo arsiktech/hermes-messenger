@@ -7,6 +7,8 @@ A Telegram / iMessage-style chat for the [Hermes Agent](https://hermes-agent.nou
 - **Bubbles.** Your messages sit on the right in your theme's accent colour, the agent's on the left. Consecutive replies group together, in a readable 800px column with the composer lined up underneath.
 - **File previews.** Attached images show as thumbnails (click for full size), code and text files show their first lines, audio and video get a player, and everything else gets a typed card. Click a card's name row to reveal the file in Finder.
 - **Reactions** sit under the bubble as small pills, with a compact quick picker.
+- **Reply and quote.** Hover any message and click ↩ to reply to it, or select part of it and click **Quote**. A "Replying to…" bar sits above the input (Esc cancels). The sent message shows a quote card; click it to jump to the original. The agent receives it in the same form as a Telegram reply.
+- **Questions and command approvals** look like chat: an agent bubble with tappable reply chips, and Run / Always allow / Reject as capsule buttons.
 - **A noise filter** with three levels, switched from the status bar:
   - **All**: everything, as stock Hermes shows it.
   - **Calm** (default): tool calls, thinking and background notices stay visible but faded. Hover one to read it.

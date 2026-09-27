@@ -108,6 +108,68 @@ html[data-hm-style='bubbles'] ${USER_BUBBLE} [data-slot='aui_user-inline-code'] 
   border-color: transparent !important;
 }
 
+/* ── Your attachments: part of your message, not a stray line ─────────── */
+/* The app renders a message's attached files as a row AFTER the bubble
+   (a sibling of the message root), so it sat on the left as bare grey text.
+   Align it under your bubble and draw each file as a card. */
+
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div:has(> [data-slot='aui_directive-text']) {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+html[data-hm-style='bubbles'][data-hm-pin='off'] [data-slot='aui_user-message-root'] + div:has(> [data-slot='aui_directive-text']) {
+  margin-top: calc(0.25rem - var(--conversation-turn-gap, 0.75rem));
+}
+
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div > [data-slot='aui_directive-text'] {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  max-width: min(78%, 40rem);
+  white-space: normal;
+}
+
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  padding: 0.5rem 0.8125rem 0.5rem 0.625rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg) 32%, transparent);
+  border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r);
+  background: color-mix(in srgb, var(--hm-out-bg) 12%, transparent);
+  color: var(--ui-text-primary, var(--foreground));
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: background 0.2s var(--hm-ease), transform 0.2s var(--hm-ease);
+}
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip']:hover {
+  background: color-mix(in srgb, var(--hm-out-bg) 20%, transparent);
+}
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip']:active {
+  transform: scale(0.98);
+}
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip'] > svg {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--hm-out-bg);
+}
+
+/* Image attachments: thumbnails right-aligned with the bubble's corner shape. */
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div [data-slot='aui_embedded-images'] {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div :is([data-slot='aui_directive-image'], [data-slot='aui_embedded-image']) {
+  border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r) !important;
+}
+
 /* ── Bubbles: the agent's ─────────────────────────────────────────────── */
 
 html[data-hm-style='bubbles'] ${BOT_BUBBLE} {

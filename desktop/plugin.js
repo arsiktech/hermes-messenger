@@ -592,6 +592,125 @@ html[data-hm-style='bubbles'] [data-slot='composer-root'] [data-slot='composer-s
 .hm-chip-dot[data-level='calm'] { transform: scale(0.8); }
 .hm-chip-dot[data-level='results'] { transform: scale(1.15); }
 
+/* ── Questions (clarify): an agent bubble with quick-reply chips ─────── */
+
+html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) {
+  width: min(100%, 36rem);
+  justify-items: stretch;
+  gap: 0.5rem;
+}
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] {
+  max-width: min(100%, 36rem);
+  padding: 0.75rem 0.875rem 0.875rem;
+  border: 0.0625rem solid var(--hm-in-stroke);
+  border-radius: var(--hm-r) var(--hm-r) var(--hm-r) var(--hm-tail);
+  background: var(--hm-in-bg);
+  font-size: inherit;
+  transform-origin: 0 100%;
+  animation: hm-pop 0.42s var(--hm-spring) both;
+}
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'][data-clarify-settled] { width: fit-content; }
+/* The question reads like message text, not a form heading. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] .font-medium { font-weight: 500; }
+/* The "?" icon and a lone "0 of 1 answered" say nothing a bubble doesn't. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] > div:first-child > svg:last-child { display: none; }
+html[data-hm-style='bubbles'] form[data-clarify-batch='1'] > [data-slot='clarify-inline'] > div:first-child:has(> span.text-\\[0\\.6875rem\\]) { display: none; }
+
+/* Options become rounded reply chips. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] { gap: 0.375rem; margin-top: 0.25rem; }
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] > :is(button, label),
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] > span > button {
+  align-items: center;
+  gap: 0.625rem;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0.4375rem 0.75rem 0.4375rem 0.5rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 22%, transparent);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--ui-bg-primary, #fff) 72%, transparent);
+  color: var(--ui-text-primary);
+  transition: border-color 0.15s var(--hm-ease), background-color 0.15s var(--hm-ease), transform 0.15s var(--hm-ease);
+}
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] :is(button, label):is(:hover, [data-highlighted]):not([aria-pressed='true']) {
+  border-color: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 40%, transparent);
+  background: var(--ui-bg-primary, #fff);
+}
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] button:active:not(:disabled) { transform: scale(0.985); }
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] button[aria-pressed='true'] {
+  border-color: var(--hm-out-bg, var(--ui-accent));
+  background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 12%, var(--ui-bg-primary, #fff));
+}
+/* Letter keys: small round tokens; selected = your bubble colour. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] [data-slot='kbd'] {
+  width: 1.5rem; min-width: 1.5rem; height: 1.5rem;
+  margin-top: 0;
+  border-radius: 999px;
+  border-color: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 30%, transparent);
+  background: transparent;
+  color: var(--hm-out-bg, var(--ui-accent));
+  font-weight: 600;
+  box-shadow: none;
+}
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] :is(button[aria-pressed='true'], label:has(textarea:not(:placeholder-shown))) [data-slot='kbd'] {
+  border-color: var(--hm-out-bg, var(--ui-accent));
+  background: var(--hm-out-bg, var(--ui-accent));
+  color: var(--hm-out-ink, #fff);
+}
+/* "(Recommended)" becomes a small tag. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] button .flex-1 > span {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0.0625rem 0.4375rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 12%, transparent);
+  color: var(--hm-out-bg, var(--ui-accent));
+  font-size: 0.6875rem;
+  font-weight: 600;
+  vertical-align: 0.0625rem;
+}
+/* "Other": the chip is the field; no box inside a box. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [data-slot='textarea'] {
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  min-height: 1.5rem;
+  margin: 0;
+  padding: 0.125rem 0;
+  line-height: 1.25rem;
+  font-size: inherit;
+  align-self: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] > [data-slot='textarea'] {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 22%, transparent);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--ui-bg-primary, #fff) 72%, transparent);
+}
+
+/* Actions sit under the bubble on its side, as capsules in your colour. */
+html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child { justify-content: flex-start; gap: 0.375rem; }
+html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button'] {
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+}
+html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button'][type='submit'] {
+  order: -1;
+  background: var(--hm-out-bg, var(--ui-accent));
+  color: var(--hm-out-ink, #fff);
+  box-shadow: 0 0.0625rem 0.125rem rgb(0 0 0 / 0.15);
+}
+html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button'][type='submit']:disabled { opacity: 0.4; }
+html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button']:not([type='submit']) { color: var(--ui-text-secondary); }
+html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   html[data-hm] *, html[data-hm] *::before { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

@@ -8,6 +8,7 @@ A Telegram / iMessage-style chat for the [Hermes Agent](https://hermes-agent.nou
 - **File previews.** Attached images show as thumbnails (click for full size), code and text files show their first lines, audio and video get a player, and everything else gets a typed card. Click a card's name row to reveal the file in Finder.
 - **Reactions** sit under the bubble as small pills, with a compact quick picker.
 - **Reply and quote.** Hover any message and click ↩ to reply to it, or select part of it and click **Quote**. A "Replying to…" bar sits above the input (Esc cancels). The sent message shows a quote card; click it to jump to the original. The agent receives it in the same form as a Telegram reply.
+- **Cron reports and kanban alerts** stop masquerading as your own green bubble. They become left-aligned cards named after the job or task ("⏱ Office · Notion triage", "⏸ Task blocked · t_8f7f39c9"), with the model-facing header hidden, markdown and links rendered, and long reports folded behind *Show more*.
 - **Bot-to-bot conversations** collapse to one row ("Hermes ⇄ Quest · 2 messages · replied"). Tap it to read the exchange as a small chat: what your bot asked, then the teammate's reply, with names and avatars. The raw "Message Agent" JSON and background-process notices disappear.
 - **Questions and command approvals** look like chat: an agent bubble with tappable reply chips, and Run / Always allow / Reject as capsule buttons.
 - **A noise filter** with three levels, switched from the status bar:

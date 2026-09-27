@@ -300,6 +300,34 @@ html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div :is([dat
   border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r) !important;
 }
 
+/* ── System cards (cron reports, kanban alerts) ─────────────────────────── */
+[data-hm-sys] { align-items: flex-start !important; }
+[data-hm-sys] > :not(.hm-sys) { display: none !important; }
+.hm-sys {
+  box-sizing: border-box; width: min(88%, 42rem); margin: 0.25rem 0; padding: 0.625rem 0.875rem 0.75rem;
+  border: 0.0625rem solid var(--hm-in-stroke, var(--ui-stroke-tertiary)); box-shadow: inset 0.1875rem 0 0 var(--hm-sys-tone, var(--ui-text-tertiary)); padding-left: 1rem;
+  border-radius: 0.75rem; background: color-mix(in srgb, var(--ui-base) 4%, transparent); color: var(--ui-text-primary);
+}
+.hm-sys[data-kind='cron'] { --hm-sys-tone: #8e7cf0; }
+.hm-sys[data-state='blocked'], .hm-sys[data-state='timeout'], .hm-sys[data-state='warn'] { --hm-sys-tone: #e0a526; }
+.hm-sys[data-state='done'] { --hm-sys-tone: #34a853; }
+.hm-sys[data-state='crashed'], .hm-sys[data-state='changes'] { --hm-sys-tone: #e5484d; }
+.hm-sys[data-state='status'], .hm-sys[data-state='review'] { --hm-sys-tone: #3b82f6; }
+.hm-sys-head { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; font-size: 0.75rem; line-height: 1.25rem; }
+.hm-sys-icon { flex: none; width: 1.1em; color: var(--hm-sys-tone); text-align: center; }
+.hm-sys-title { min-width: 0; overflow: hidden; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.hm-sys-meta { flex: none; margin-left: auto; color: var(--ui-text-secondary); white-space: nowrap; }
+.hm-sys-body { margin-top: 0.375rem; font-size: 0.8125rem; line-height: 1.45; overflow-wrap: anywhere; }
+.hm-sys-body p, .hm-sys-body ul { margin: 0 0 0.5rem; }
+.hm-sys-body > :last-child { margin-bottom: 0; }
+.hm-sys-body ul { padding-left: 1.1rem; list-style: disc; }
+.hm-sys-body a { color: var(--ui-accent); text-decoration: underline; text-underline-offset: 0.15em; }
+.hm-sys-body code { font-size: 0.75rem; }
+.hm-sys[data-long]:not([data-open]) .hm-sys-body { max-height: 6.5rem; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 45%, transparent); }
+.hm-sys[data-long] .hm-sys-body { margin-bottom: 0; }
+.hm-sys-more { display: block; margin-top: 0.375rem; padding: 0; border: 0; background: none; color: var(--ui-accent); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.hm-sys-more:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
 /* ── Bot-to-bot threads ────────────────────────────────────────────────── */
 .hm-at-group { display: grid; gap: 0.375rem; margin: 0.25rem 0; }
 .hm-at { width: min(88%, 40rem); margin: 0.25rem 0; }
@@ -943,6 +971,17 @@ const LOCALES = {
     replyingTo: who => `Replying to ${who}`,
     quotingFrom: who => `Quoting ${who}`,
     cancelReply: 'Cancel reply',
+    scheduledJob: 'Scheduled job',
+    showMore: 'Show more',
+    showLess: 'Show less',
+    kb_blocked: 'Task blocked',
+    kb_done: 'Task done',
+    kb_timeout: 'Task timed out',
+    kb_crashed: 'Worker stopped',
+    kb_changes: 'Changes requested',
+    kb_status: 'Task status',
+    kb_review: 'Review requested',
+    kb_warn: 'Task warning',
     teammate: 'Teammate',
     messages: n => (n === 1 ? '1 message' : `${n} messages`),
     replied: 'replied',
@@ -984,6 +1023,17 @@ const LOCALES = {
     quotingFrom: who => `Цитата: ${who}`,
     cancelReply: 'Отменить ответ',
     teammate: 'Коллега',
+    scheduledJob: 'Задание по расписанию',
+    showMore: 'Показать полностью',
+    showLess: 'Свернуть',
+    kb_blocked: 'Задача заблокирована',
+    kb_done: 'Задача выполнена',
+    kb_timeout: 'Время задачи вышло',
+    kb_crashed: 'Исполнитель остановился',
+    kb_changes: 'Нужны правки',
+    kb_status: 'Статус задачи',
+    kb_review: 'Нужна проверка',
+    kb_warn: 'Предупреждение',
     messages: n => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'сообщение' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'сообщения' : 'сообщений'}`,
     replied: 'ответил',
     received: 'получено',
@@ -2049,6 +2099,145 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
 }
 // ─── end bot-to-bot threads ─────────────────────────────────────────────────
 
+// ─── System cards: cron reports & kanban alerts (SDK-free, fixture-tested) ──
+// Both arrive as USER turns, so the app paints them as your own green bubble,
+// with the model-facing "[Cronjob … output — scheduled job, not the user …]"
+// header and raw **markdown** showing. Here they become left-aligned system
+// cards: a named header, rendered text, and a fold for long reports.
+
+const CRON_RE = /^\s*\[Cronjob "([^"]*)" output — [^\]]*\]\s*/
+const KANBAN_RE = /^\s*(\S{1,3})\s+\[([^\]]+)\]\s+(?:@(\S+)\s+)?Kanban\s+(t_[0-9a-f]+)\s*(?:—\s*)?([\s\S]*)$/u
+const KANBAN_STATE = { '⏸': 'blocked', '✔': 'done', '✅': 'done', '⏱': 'timeout', '✖': 'crashed', '🛑': 'changes', '🔄': 'status', '👀': 'review', '⚠': 'warn', '⚠️': 'warn' }
+
+function richText(s) {
+  const inline = t =>
+    escapeHtml(t)
+      .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, txt, url) => `<a href="${url}" data-hm-ext>${txt}</a>`)
+      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, pre, url) => `${pre}<a href="${url}" data-hm-ext>${url.replace(/^https?:\/\//, '').slice(0, 48)}${url.length > 56 ? '…' : ''}</a>`)
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+  return String(s).trim().split(/\n{2,}/).map(block => {
+    const lines = block.split('\n')
+    if (lines.every(l => /^\s*[-*•]\s+/.test(l))) return `<ul>${lines.map(l => `<li>${inline(l.replace(/^\s*[-*•]\s+/, ''))}</li>`).join('')}</ul>`
+    return `<p>${lines.map(inline).join('<br>')}</p>`
+  }).join('')
+}
+
+function classifySystemText(text) {
+  const cron = CRON_RE.exec(text)
+  if (cron) return { kind: 'cron', name: cron[1], body: text.slice(cron[0].length) }
+  const kb = KANBAN_RE.exec(text)
+  if (kb && KANBAN_STATE[kb[1]]) {
+    const body = kb[5].trim().replace(/^(blocked|done|timed out|review requested changes\/BLOCK)\s*[:—]?\s*/i, '')
+    return { kind: 'kanban', state: KANBAN_STATE[kb[1]], glyph: kb[1], board: kb[2], bot: kb[3] || '', task: kb[4], body }
+  }
+  return null
+}
+
+function createSystemCards({ label, openLink, onDispose }) {
+  const open = new Set()
+
+  function card(info, key) {
+    const el = document.createElement('div')
+    el.className = 'hm-sys'
+    el.setAttribute('data-kind', info.kind)
+    if (info.state) el.setAttribute('data-state', info.state)
+    const head = document.createElement('div')
+    head.className = 'hm-sys-head'
+    const icon = document.createElement('span')
+    icon.className = 'hm-sys-icon'
+    const title = document.createElement('span')
+    title.className = 'hm-sys-title'
+    const meta = document.createElement('span')
+    meta.className = 'hm-sys-meta'
+    if (info.kind === 'cron') {
+      icon.textContent = '⏱'
+      title.textContent = info.name
+      meta.textContent = label('scheduledJob')
+    } else {
+      icon.textContent = info.glyph
+      title.textContent = `${label('kb_' + info.state)} · ${info.task}`
+      meta.textContent = [info.board, info.bot && '@' + info.bot].filter(Boolean).join(' · ')
+    }
+    head.append(icon, title, meta)
+    el.append(head)
+    if (info.body) {
+      const body = document.createElement('div')
+      body.className = 'hm-sys-body'
+      body.innerHTML = richText(info.body)
+      el.append(body)
+      const long = info.body.length > (info.kind === 'cron' ? 420 : 160)
+      if (long) {
+        el.setAttribute('data-long', '')
+        if (open.has(key)) el.setAttribute('data-open', '')
+        const more = document.createElement('button')
+        more.type = 'button'
+        more.className = 'hm-sys-more'
+        const sync = () => (more.textContent = label(el.hasAttribute('data-open') ? 'showLess' : 'showMore'))
+        sync()
+        more.addEventListener('click', () => {
+          const on = !el.hasAttribute('data-open')
+          el.toggleAttribute('data-open', on)
+          on ? open.add(key) : open.delete(key)
+          sync()
+        })
+        el.append(more)
+      }
+    }
+    return el
+  }
+
+  const textOf = root => {
+    const b = root.querySelector('.composer-human-message')
+    if (!b) return ''
+    const clone = b.cloneNode(true)
+    for (const x of clone.querySelectorAll('button, .hm-quote, .hm-att')) x.remove()
+    return clone.innerText || clone.textContent || ''
+  }
+
+  const scan = () => {
+    const roots = document.querySelectorAll("[data-slot='aui_user-message-root']")
+    roots.forEach((root, i) => {
+      const text = textOf(root)
+      const sig = text.slice(0, 200)
+      if (root.getAttribute('data-hm-sys') === sig && root.querySelector(':scope > .hm-sys')) return
+      root.querySelector(':scope > .hm-sys')?.remove()
+      const info = text && classifySystemText(text)
+      if (!info) {
+        root.removeAttribute('data-hm-sys')
+        return
+      }
+      root.setAttribute('data-hm-sys', sig)
+      root.prepend(card(info, `${i}:${sig.slice(0, 60)}`))
+    })
+  }
+
+  const onClick = e => {
+    const a = e.target.closest?.('.hm-sys a[data-hm-ext]')
+    if (!a) return
+    e.preventDefault()
+    openLink(a.getAttribute('href'))
+  }
+  document.addEventListener('click', onClick, true)
+
+  let frame = 0
+  const observer = new MutationObserver(records => {
+    if (records.every(r => r.target?.closest?.('.hm-sys'))) return
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(scan)
+  })
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+  scan()
+  onDispose(() => {
+    observer.disconnect()
+    cancelAnimationFrame(frame)
+    document.removeEventListener('click', onClick, true)
+    for (const el of document.querySelectorAll('.hm-sys')) el.remove()
+    for (const el of document.querySelectorAll('[data-hm-sys]')) el.removeAttribute('data-hm-sys')
+  })
+}
+// ─── end system cards ───────────────────────────────────────────────────────
+
 // ─── Plugin ─────────────────────────────────────────────────────────────────
 
 export default {
@@ -2131,6 +2320,13 @@ export default {
       onDispose: fn => ctx.onDispose(fn)
     })
     ctx.register({ id: 'reply-bar', area: COMPOSER_AREAS.top, render: () => jsx(ReplyBar, {}) })
+
+    // Cron reports and kanban alerts: system cards, not your own green bubble.
+    createSystemCards({
+      label: key => t(key),
+      openLink: url => (window.hermesDesktop?.openExternal ? window.hermesDesktop.openExternal(url) : window.open(url, '_blank')),
+      onDispose: fn => ctx.onDispose(fn)
+    })
 
     // Bot-to-bot conversations: one compact row that opens into bubbles.
     createAgentThreads({

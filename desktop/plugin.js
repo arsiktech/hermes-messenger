@@ -595,7 +595,7 @@ html[data-hm-style='bubbles'] [data-slot='composer-root'] [data-slot='composer-s
 @media (prefers-reduced-motion: reduce) {
   html[data-hm] *, html[data-hm] *::before { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
-html[data-hm-motion='off'] :is(${BUBBLES}, [data-slot='aui_turn-activity'], [data-slot='aui_response-loading']) {
+html[data-hm-motion='off'] :is(${BUBBLES}, .hm-att, [data-slot='aui_turn-activity'], [data-slot='aui_response-loading']) {
   animation: none !important;
   transition: none !important;
 }

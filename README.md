@@ -1,44 +1,51 @@
 # Hermes Messenger
 
 A Telegram / iMessage-style chat for the [Hermes Agent](https://hermes-agent.nousresearch.com) desktop app.
-No noise, just results.
 
-- **Bubbles.** Your messages sit on the right in your theme's accent colour, the agent's on the left. Consecutive replies group together, and everything stays in a readable 800px column with the composer lined up underneath.
+![Stock Hermes, Calm mode and Results mode](docs/modes.png)
+
+- **Bubbles.** Your messages sit on the right in your theme's accent colour, the agent's on the left. Consecutive replies group together, in a readable 800px column with the composer lined up underneath.
+- **File previews.** Attached images show as thumbnails (click for full size), code and text files show their first lines, audio and video get a player, and everything else gets a typed card. Click a card's name row to reveal the file in Finder.
+- **Reactions** sit under the bubble as small pills, with a compact quick picker.
 - **A noise filter** with three levels, switched from the status bar:
   - **All**: everything, as stock Hermes shows it.
   - **Calm** (default): tool calls, thinking and background notices stay visible but faded. Hover one to read it.
-  - **Results**: only answers and things that need you. Approvals, clarifying questions and generated images are **never** hidden. Hold **⌥ / Alt** to peek at the hidden work.
+  - **Results**: only answers and things that need you. Approvals, clarifying questions and generated images are never hidden. Hold **⌥ / Alt** to peek at the hidden work.
 - **A typing bubble** that follows the app's real busy state, so you can tell the agent is working even when Results mode hides the work.
 - **Motion.** New messages spring in; history loads and session switches stay still. Respects *Reduce motion*.
 - **No sticky prompt** clipping the transcript (you can switch it back on).
 - **Works with any theme, light or dark.** The bubble colour comes from your theme's accent, darkened just enough for white text to meet WCAG AA contrast.
 
+![File previews and reactions](docs/previews.png)
+
 ## Install
 
-Copy the folder into your Hermes desktop plugins directory and restart the app (or reload the window):
+In Hermes Desktop: **Capabilities → Plugins → Install from Git**, and enter `arsiktech/hermes-messenger`.
+
+Or from a terminal:
 
 ```bash
-git clone https://github.com/<you>/hermes-messenger ~/.hermes/desktop-plugins/hermes-messenger
+hermes plugins install arsiktech/hermes-messenger
 ```
 
-Open it from the **status bar chip** (bottom right), or from the command palette under *Messenger*.
-**⌘⌥F** (Ctrl+Alt+F) cycles All → Calm → Results.
+Then turn it on in **Capabilities → Plugins**. Open its settings from the status bar chip (bottom right) or the command palette under *Messenger*. **⌘⌥F** (Ctrl+Alt+F) cycles All → Calm → Results.
 
-To remove it, disable it in **Capabilities → Plugins**, or delete the folder. It only changes styling, so disabling it restores the stock app exactly.
+To remove it, disable it in **Capabilities → Plugins**, or run `hermes plugins remove hermes-messenger`. It only changes how the chat looks, so disabling it restores the stock app.
 
 ## How it works
 
-It's a single `plugin.js` with no build step and no dependencies. It:
+The Desktop half is a single `desktop/plugin.js` with no build step and no dependencies. It:
 
 - injects one stylesheet that targets the app's stable `data-slot` hooks;
 - sets a few `data-hm-*` attributes on `<html>` to switch modes;
-- uses a small MutationObserver so only genuinely new bubbles animate.
+- uses a small MutationObserver so only new bubbles animate;
+- for file previews, reads the attached file through the app's own desktop bridge (`readFileText` / `readFileDataUrl`). Nothing leaves your machine.
 
-It never reads or changes messages, sessions, the backend, or the network. Settings are saved in plugin storage.
+It never changes messages, sessions or the backend, and makes no network requests. Settings are saved in plugin storage. `plugin.yaml` and the empty `__init__.py` exist only so Hermes can install it as a package; there are no agent tools or hooks.
 
 ## Compatibility
 
-Built and tested against Hermes Desktop **0.21.x**. If a future Hermes version renames a `data-slot`, the affected style stops applying; nothing breaks. Please open an issue if that happens.
+Built and tested against Hermes Desktop **0.21.x**. If a future Hermes version renames a `data-slot`, the affected style stops applying and the stock look shows through. Please open an issue if that happens.
 
 ## License
 

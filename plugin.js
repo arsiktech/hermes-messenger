@@ -250,6 +250,31 @@ html[data-hm] .hm-att:is([data-ext='doc'], [data-ext='docx'], [data-ext='pages']
 html[data-hm] .hm-att[data-kind='text'] .hm-att-badge { background: #5b6472; color: #fff; }
 html[data-hm] .hm-att-meta { font-size: 0.6875rem; color: var(--ui-text-tertiary, #888); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Inside your bubble (a reopened chat), Telegram-style: the file sits at the
+   top of the bubble on a light glass panel instead of a card of its own. */
+html[data-hm] .hm-att[data-inbubble] {
+  /* A fixed width (not a %): inside a fit-content bubble a % width is sized
+     from the long filename's max-content and stretches the bubble. */
+  width: 18rem;
+  max-width: 100%;
+  margin: 0.125rem 0 0.375rem;
+  border: 0;
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--hm-out-ink, #fff) 14%, transparent);
+  box-shadow: none;
+  color: var(--hm-out-ink, #fff);
+  opacity: 1;
+  animation: none;
+}
+
+/* A bubble that carries a preview sizes to its content, not the full row. */
+html[data-hm] .composer-human-message:has(.hm-att[data-inbubble]) { width: fit-content !important; }
+html[data-hm] .hm-att[data-inbubble] .hm-att-foot { color: inherit; }
+html[data-hm] .hm-att[data-inbubble] .hm-att-foot:hover { background: color-mix(in srgb, var(--hm-out-ink, #fff) 10%, transparent); }
+html[data-hm] .hm-att[data-inbubble] .hm-att-meta { color: color-mix(in srgb, currentColor 72%, transparent); }
+html[data-hm] .hm-att[data-inbubble] .hm-att-badge { background: color-mix(in srgb, var(--hm-out-ink, #fff) 22%, transparent); color: inherit; }
+html[data-hm] .hm-att[data-inbubble] .hm-att-text { color: inherit; opacity: 0.85; border-bottom-color: color-mix(in srgb, currentColor 18%, transparent); }
+
 html[data-hm] .hm-lightbox {
   position: fixed;
   inset: 0;
@@ -851,7 +876,12 @@ function createMotion(ctx) {
 // DOM (hidden) so the app keeps owning it; if a file can't be read (remote
 // gateway, moved, too big) the chip simply stays visible.
 
-const ATTACH_CHIP = "[data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip'][data-ref='file']"
+// Fresh send: the app renders attachments in a row AFTER the bubble. Reopened
+// chat: the same `@file:` stays inline in the message text, INSIDE the bubble.
+const ATTACH_CHIP = [
+  "[data-slot='aui_user-message-root'] + div [data-slot='aui_directive-chip'][data-ref='file']",
+  "[data-slot='aui_user-message-root'] .composer-human-message [data-slot='aui_directive-chip'][data-ref='file']"
+].join(', ')
 const KINDS = {
   image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif', 'heic'],
   video: ['mp4', 'mov', 'm4v', 'webm'],
@@ -981,12 +1011,13 @@ function createAttachmentPreviews({ bridge, cwd, onDispose }) {
     foot.addEventListener('click', () => bridge.revealPath?.(f.path))
     card.append(foot)
 
+    if (chip.closest('.composer-human-message')) card.setAttribute('data-inbubble', '')
     chip.after(card)
     chip.setAttribute('data-hm-previewed', '')
   }
 
   const scan = () => {
-    for (const chip of document.querySelectorAll(`${ATTACH_CHIP}:not([data-hm-previewed]):not([data-hm-pending])`)) {
+    for (const chip of document.querySelectorAll(`:is(${ATTACH_CHIP}):not([data-hm-previewed]):not([data-hm-pending])`)) {
       const id = chip.getAttribute('data-directive-id') || chip.getAttribute('title') || ''
       if (!id) continue
       chip.setAttribute('data-hm-pending', '')

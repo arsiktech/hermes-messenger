@@ -384,7 +384,7 @@ html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
 .hm-at[data-open] .hm-at-body { display: grid; }
 .hm-at-msg { display: flex; align-items: flex-end; gap: 0.5rem; }
 .hm-at-msg .hm-at-avatar { width: 1.625rem; height: 1.625rem; font-size: 0.875rem; }
-.hm-at-col { display: grid; gap: 0.125rem; min-width: 0; }
+.hm-at-col { display: grid; gap: 0.125rem; min-width: 0; max-width: 82%; }
 .hm-at-name { padding: 0 0.625rem; color: var(--ui-text-secondary); font-size: 0.6875rem; font-weight: 600; line-height: 1rem; }
 .hm-at-bubble {
   width: fit-content; max-width: 100%; padding: 0.4375rem 0.75rem; overflow-wrap: anywhere;
@@ -397,9 +397,9 @@ html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
 .hm-at-msg[data-side='self'] .hm-at-col { justify-items: end; }
 .hm-at-msg[data-side='self'] .hm-at-bubble {
   border-radius: var(--hm-r, 1rem) var(--hm-r, 1rem) var(--hm-tail, 0.375rem) var(--hm-r, 1rem);
-  background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 18%, transparent);
+  background: color-mix(in srgb, var(--ui-base) 13%, transparent);
 }
-.hm-at-avatar[data-self] { background: var(--hm-out-bg, var(--ui-accent)); color: var(--hm-out-ink, #fff); }
+.hm-at-avatar[data-self] { background: color-mix(in srgb, var(--ui-base) 22%, transparent); }
 .hm-at-bubble code { font-size: 0.75rem; }
 html[data-hm-motion='off'] .hm-at-head, html[data-hm-motion='off'] .hm-at-chev { transition: none; }
 
@@ -2012,31 +2012,55 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
   let history = { sid: null, stamp: '', notices: [] }
   let fetching = null
 
-  const loadProfiles = () =>
-    (profilesLoaded ??= request('profiles.list', { include_sessions: false })
+  // The roster names each bot by its sidebar title (ui_meta), then its
+  // display name. A failed or empty answer (e.g. asked before the gateway was
+  // ready) is not cached, so the next paint asks again.
+  let retryAt = 0
+  const loadProfiles = () => {
+    if (profilesLoaded || Date.now() < retryAt) return profilesLoaded
+    return (profilesLoaded = request('profiles.list', { include_sessions: false })
       .then(async res => {
-        for (const p of res?.profiles || []) {
-          const entry = { name: p.display_name || p.name, avatar: null }
+        const list = res?.profiles || []
+        if (!list.length) throw new Error('empty roster')
+        for (const p of list) {
+          const title = p.ui_meta?.['hermes-bots']?.title
+          const entry = { name: (typeof title === 'string' && title.trim()) || p.display_name || p.name, avatar: null }
           profiles.set(p.name.toLowerCase(), entry)
+          profiles.set(entry.name.toLowerCase(), entry)
+          if (p.display_name) profiles.set(p.display_name.toLowerCase(), entry)
           if (p.is_default) profiles.set('hermes', entry)
+          if (p.is_default) profiles.set('default', entry)
           if (p.has_avatar) {
             request('profiles.get_asset', { asset: 'avatar', name: p.name })
               .then(a => {
                 if (a?.found && a.data) {
                   entry.avatar = a.data
-                  schedule()
+                  redrawInbound()
                 }
               })
               .catch(() => {})
           }
         }
-        schedule()
+        redrawInbound()
       })
-      .catch(() => {}))
+      .catch(() => {
+        profilesLoaded = null
+        retryAt = Date.now() + 5000
+      }))
+  }
 
   const who = key => {
+    if (!profiles.size) loadProfiles()
     const k = agentKeyOf(key)
-    return profiles.get(k) || { name: k || label('teammate'), avatar: null }
+    return profiles.get(k) || profiles.get(String(key || '').trim().toLowerCase()) || { name: k || label('teammate'), avatar: null }
+  }
+
+  // Inbound threads are drawn once per note; after names or avatars arrive,
+  // drop them and let the next paint draw them again.
+  function redrawInbound() {
+    for (const t of document.querySelectorAll('.hm-at[data-hm-at^="in:"]')) t.remove()
+    for (const el of document.querySelectorAll("[data-slot='aui_agent-message-note'][data-hm-hidden]")) el.removeAttribute('data-hm-hidden')
+    schedule()
   }
 
   const avatarEl = (person, self = false) => {
@@ -2150,7 +2174,7 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
     const me = who(selfName() || 'hermes')
     for (const note of document.querySelectorAll("[data-slot='aui_agent-message-note']:not([data-hm-hidden])")) {
       const sender = (note.querySelector('.wrap-anywhere')?.textContent || '').replace(/^Message from\s*/, '').trim()
-      const peer = profiles.get(agentKeyOf(sender)) || [...profiles.values()].find(p => p.name === sender) || { name: sender, avatar: null }
+      const peer = profiles.get(agentKeyOf(sender)) || profiles.get(sender.toLowerCase()) || { name: sender, avatar: null }
       const bodyEl = note.querySelector('details > div')
       const msgs = []
       if (bodyEl) msgs.push({ from: peer, side: 'peer', node: bodyEl.cloneNode(true) })
@@ -2168,6 +2192,7 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
       }
       const replyBody = replyNotice?.querySelector('details > div')
       if (replyBody) msgs.push({ from: me, side: 'self', node: replyBody.cloneNode(true) })
+      if (replyBody) hideEchoes(turn, replyBody)
 
       const idx = [...document.querySelectorAll("[data-slot='aui_agent-message-note']")].indexOf(note)
       const thread = buildThread(`in:${sessionId() || ''}:${idx}`, peer, me, msgs, replyBody ? 'replied' : 'received')
@@ -2176,6 +2201,29 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
       note.setAttribute('data-hm-hidden', '')
       replyNotice?.setAttribute('data-hm-hidden', '')
       replyNotice?.setAttribute('data-hm-at-merged', '')
+    }
+  }
+
+  // The same reply can also be painted as ordinary bubbles right after the
+  // folded notice (the app folds only the first assistant row of a turn).
+  // Hide a following bubble only when its whole text is already inside the
+  // thread's reply, and stop at the next user turn.
+  const norm = t => (t || '').replace(/\s+/g, ' ').trim()
+  function hideEchoes(turn, replyBody) {
+    const reply = norm(replyBody.textContent)
+    if (!reply) return
+    let el = turn?.nextElementSibling
+    for (let hops = 0; el && hops < 6; el = el.nextElementSibling, hops++) {
+      if (el.matches("[data-slot='aui_user-message-root']")) break
+      const rows = el.matches("[data-slot='aui_assistant-message-root']") ? [el] : [...el.querySelectorAll("[data-slot='aui_assistant-message-root']")]
+      for (const row of rows) {
+        const body = row.querySelector("[data-slot='aui_assistant-message-content']")
+        const text = norm(body?.textContent)
+        if (text.length > 20 && reply.includes(text)) {
+          body.setAttribute('data-hm-hidden', '')
+          body.setAttribute('data-hm-at-merged', '')
+        }
+      }
     }
   }
 

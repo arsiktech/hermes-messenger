@@ -300,6 +300,55 @@ html[data-hm-style='bubbles'] [data-slot='aui_user-message-root'] + div :is([dat
   border-radius: var(--hm-r) var(--hm-r) var(--hm-tail) var(--hm-r) !important;
 }
 
+/* ── Bot-to-bot threads ────────────────────────────────────────────────── */
+.hm-at-group { display: grid; gap: 0.375rem; margin: 0.25rem 0; }
+.hm-at { width: min(88%, 40rem); margin: 0.25rem 0; }
+.hm-at:not([data-open]) { width: fit-content; max-width: min(88%, 40rem); }
+.hm-at-head {
+  display: inline-flex; align-items: center; gap: 0.5rem; max-width: 100%;
+  padding: 0.25rem 0.75rem 0.25rem 0.3125rem; border: 0.0625rem solid var(--hm-in-stroke, var(--ui-stroke-tertiary));
+  border-radius: 999px; background: color-mix(in srgb, var(--ui-base) 4%, transparent);
+  color: var(--ui-text-secondary); font: inherit; font-size: 0.75rem; line-height: 1.25rem; cursor: pointer; text-align: left;
+  transition: background 0.15s var(--hm-ease, ease);
+}
+.hm-at-head:hover { background: color-mix(in srgb, var(--ui-base) 8%, transparent); }
+.hm-at-head:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.hm-at-faces { display: inline-flex; flex: none; }
+.hm-at-faces .hm-at-avatar + .hm-at-avatar { margin-left: -0.375rem; box-shadow: 0 0 0 0.125rem var(--ui-bg-primary, #fff); }
+.hm-at-avatar {
+  display: inline-grid; place-items: center; flex: none; width: 1.375rem; height: 1.375rem; overflow: hidden;
+  border-radius: 999px; background: color-mix(in srgb, var(--ui-base) 12%, transparent);
+  color: var(--ui-text-primary); font-size: 0.75rem; font-weight: 600; line-height: 1;
+}
+.hm-at-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hm-at-title { overflow: hidden; color: var(--ui-text-primary); font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+.hm-at-meta { flex: none; color: var(--ui-text-secondary); white-space: nowrap; }
+.hm-at[data-state='failed'] .hm-at-meta { color: #d93b3b; }
+.hm-at-chev { flex: none; width: 0.4rem; height: 0.4rem; margin: 0 0.125rem 0.125rem 0.125rem; border: solid currentColor; border-width: 0 0.09rem 0.09rem 0; transform: rotate(45deg); opacity: 0.6; transition: transform 0.15s var(--hm-ease, ease); }
+.hm-at[data-open] .hm-at-chev { transform: translateY(0.15rem) rotate(-135deg); }
+.hm-at-body { display: none; gap: 0.625rem; margin-top: 0.5rem; padding: 0.625rem 0 0.25rem 0.75rem; border-left: 0.125rem solid color-mix(in srgb, var(--ui-base) 10%, transparent); }
+.hm-at[data-open] .hm-at-body { display: grid; }
+.hm-at-msg { display: flex; align-items: flex-end; gap: 0.5rem; }
+.hm-at-msg .hm-at-avatar { width: 1.625rem; height: 1.625rem; font-size: 0.875rem; }
+.hm-at-col { display: grid; gap: 0.125rem; min-width: 0; }
+.hm-at-name { padding: 0 0.625rem; color: var(--ui-text-secondary); font-size: 0.6875rem; font-weight: 600; line-height: 1rem; }
+.hm-at-bubble {
+  width: fit-content; max-width: 100%; padding: 0.4375rem 0.75rem; overflow-wrap: anywhere;
+  border-radius: var(--hm-r, 1rem) var(--hm-r, 1rem) var(--hm-r, 1rem) var(--hm-tail, 0.375rem);
+  background: var(--hm-in-bg, color-mix(in srgb, var(--ui-base) 8%, transparent)); color: var(--ui-text-primary);
+  font-size: 0.8125rem; line-height: 1.4; white-space: pre-wrap;
+}
+.hm-at-bubble > div { margin: 0 !important; padding: 0 !important; border: 0 !important; max-width: none !important; font-size: inherit !important; white-space: normal; }
+.hm-at-msg[data-side='self'] { flex-direction: row-reverse; }
+.hm-at-msg[data-side='self'] .hm-at-col { justify-items: end; }
+.hm-at-msg[data-side='self'] .hm-at-bubble {
+  border-radius: var(--hm-r, 1rem) var(--hm-r, 1rem) var(--hm-tail, 0.375rem) var(--hm-r, 1rem);
+  background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 18%, transparent);
+}
+.hm-at-avatar[data-self] { background: var(--hm-out-bg, var(--ui-accent)); color: var(--hm-out-ink, #fff); }
+.hm-at-bubble code { font-size: 0.75rem; }
+html[data-hm-motion='off'] .hm-at-head, html[data-hm-motion='off'] .hm-at-chev { transition: none; }
+
 /* App bug fix: Tailwind Typography's \`.prose img { margin: 2em 0 }\` beats the
    image's \`m-0\` (same specificity, later in the sheet), so an inline image is
    pushed 2em down inside its fixed-size frame and covers the next paragraph. */
@@ -893,7 +942,13 @@ const LOCALES = {
     agent: 'Agent',
     replyingTo: who => `Replying to ${who}`,
     quotingFrom: who => `Quoting ${who}`,
-    cancelReply: 'Cancel reply'
+    cancelReply: 'Cancel reply',
+    teammate: 'Teammate',
+    messages: n => (n === 1 ? '1 message' : `${n} messages`),
+    replied: 'replied',
+    received: 'received',
+    delivered: 'delivered, no reply',
+    failed: 'not delivered'
   },
   ru: {
     name: 'Мессенджер',
@@ -927,7 +982,13 @@ const LOCALES = {
     agent: 'Агент',
     replyingTo: who => `Ответ: ${who}`,
     quotingFrom: who => `Цитата: ${who}`,
-    cancelReply: 'Отменить ответ'
+    cancelReply: 'Отменить ответ',
+    teammate: 'Коллега',
+    messages: n => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'сообщение' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'сообщения' : 'сообщений'}`,
+    replied: 'ответил',
+    received: 'получено',
+    delivered: 'доставлено, без ответа',
+    failed: 'не доставлено'
   }
 }
 
@@ -1660,6 +1721,334 @@ function ReplyBar() {
   })
 }
 
+// ─── Bot-to-bot threads (SDK-free: also loaded by the visual test fixture) ──
+// A teammate conversation shows as ONE compact row ("Hermes ⇄ Quest · 2
+// messages · replied"); a tap opens it as a mini group chat of bubbles.
+//
+// Outbound (this bot used message_agent): the reply lands later as a
+// background-process notice. The row replaces that notice, pairing the reply
+// with the message that was sent, read from session.history.
+// Inbound (a teammate wrote first): the app's "Message from X" note and the
+// folded "Replied to X" answer merge into the same row.
+
+const AT_DM_RE = /bot_mode_dm\.py[\s\S]*?\s-p\s+"?([a-z0-9][a-z0-9_-]{0,63})"?\s+chat\b/i
+const AT_NOISE_LINE = /^(↻ Resumed session|Model restored from session|session_id:)/
+
+function agentKeyOf(value) {
+  return String(value || '').trim().replace(/^@/, '').replace(/@[^@]*$/, '').split('/').pop().toLowerCase()
+}
+
+/** A bot_mode_dm completion block → { target, reply, ok } (null if it isn't one). */
+function parseDmBlock(block) {
+  const m = AT_DM_RE.exec(block)
+  if (!m) return null
+  const ok = /completed normally|exit code 0\b/.test(block)
+  const out = block.indexOf('\nOutput:\n')
+  let reply = out === -1 ? '' : block.slice(out + 9).replace(/\]\s*$/, '').trim()
+  if (reply.startsWith('{')) {
+    try {
+      const j = JSON.parse(reply)
+      if (typeof j.reply === 'string') reply = j.reply
+    } catch {}
+  }
+  reply = reply.split('\n').filter(l => !AT_NOISE_LINE.test(l.trim())).join('\n').trim()
+  return { target: m[1].toLowerCase(), reply, ok }
+}
+
+function dmBlocks(text) {
+  return String(text || '').split(/\n\n(?=\[IMPORTANT: )/).map(parseDmBlock).filter(Boolean)
+}
+
+const isNoticeRow = m =>
+  m && (m.display_kind === 'process_complete' || m.display_kind === 'async_delegation_complete' ||
+    (!m.display_kind && /^\[IMPORTANT: Background process/.test(String(m.text || ''))))
+
+/** Pair every reply notice with the message_agent call that asked for it. */
+function exchangesFromHistory(messages) {
+  const notices = []
+  const sent = []
+  for (const m of messages || []) {
+    if (m?.role === 'tool' && m.name === 'message_agent' && m.args) {
+      sent.push({ target: agentKeyOf(m.args.target), message: String(m.args.message || ''), used: false })
+    } else if (isNoticeRow(m)) {
+      const blocks = dmBlocks(m.text)
+      const pairs = blocks.map(b => {
+        let ask = null
+        for (let i = sent.length - 1; i >= 0; i--) {
+          if (!sent[i].used && sent[i].target === b.target) {
+            ask = sent[i]
+            break
+          }
+        }
+        if (ask) ask.used = true
+        return { ...b, message: ask?.message || '' }
+      })
+      notices.push({ label: m.display_metadata?.display_text || '', pairs })
+    }
+  }
+  return notices
+}
+
+const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+const lightMarkdown = s =>
+  escapeHtml(s)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+
+function createAgentThreads({ request, sessionId, selfName, label, onDispose, listen }) {
+  const open = new Set()
+  const profiles = new Map() // key → { name, avatar }
+  let profilesLoaded = null
+  let history = { sid: null, stamp: '', notices: [] }
+  let fetching = null
+
+  const loadProfiles = () =>
+    (profilesLoaded ??= request('profiles.list', { include_sessions: false })
+      .then(async res => {
+        for (const p of res?.profiles || []) {
+          const entry = { name: p.display_name || p.name, avatar: null }
+          profiles.set(p.name.toLowerCase(), entry)
+          if (p.is_default) profiles.set('hermes', entry)
+          if (p.has_avatar) {
+            request('profiles.get_asset', { asset: 'avatar', name: p.name })
+              .then(a => {
+                if (a?.found && a.data) {
+                  entry.avatar = a.data
+                  schedule()
+                }
+              })
+              .catch(() => {})
+          }
+        }
+        schedule()
+      })
+      .catch(() => {}))
+
+  const who = key => {
+    const k = agentKeyOf(key)
+    return profiles.get(k) || { name: k || label('teammate'), avatar: null }
+  }
+
+  const avatarEl = (person, self = false) => {
+    const a = document.createElement('span')
+    a.className = 'hm-at-avatar'
+    if (self) a.setAttribute('data-self', '')
+    if (person.avatar) {
+      const img = document.createElement('img')
+      img.src = person.avatar
+      img.alt = ''
+      a.append(img)
+    } else {
+      const glyph = [...person.name].find(c => /\p{Extended_Pictographic}/u.test(c))
+      a.textContent = glyph || person.name.trim().charAt(0).toUpperCase() || '🤖'
+    }
+    return a
+  }
+
+  /** messages: [{ from: person, side: 'self'|'peer', html }] */
+  function buildThread(key, peer, me, messages, state) {
+    const root = document.createElement('div')
+    root.className = 'hm-at'
+    root.setAttribute('data-hm-at', key)
+    root.setAttribute('data-state', state)
+    if (open.has(key)) root.setAttribute('data-open', '')
+
+    const head = document.createElement('button')
+    head.type = 'button'
+    head.className = 'hm-at-head'
+    head.setAttribute('aria-expanded', String(open.has(key)))
+    const faces = document.createElement('span')
+    faces.className = 'hm-at-faces'
+    faces.append(avatarEl(me, true), avatarEl(peer))
+    const title = document.createElement('span')
+    title.className = 'hm-at-title'
+    title.textContent = `${me.name} ⇄ ${peer.name}`
+    const meta = document.createElement('span')
+    meta.className = 'hm-at-meta'
+    meta.textContent = [label('messages', messages.length), label(state)].filter(Boolean).join(' · ')
+    const chev = document.createElement('span')
+    chev.className = 'hm-at-chev'
+    chev.setAttribute('aria-hidden', 'true')
+    head.append(faces, title, meta, chev)
+    head.addEventListener('click', () => {
+      const on = !open.has(key)
+      on ? open.add(key) : open.delete(key)
+      root.toggleAttribute('data-open', on)
+      head.setAttribute('aria-expanded', String(on))
+    })
+
+    const body = document.createElement('div')
+    body.className = 'hm-at-body'
+    for (const m of messages) {
+      const row = document.createElement('div')
+      row.className = 'hm-at-msg'
+      row.setAttribute('data-side', m.side)
+      const col = document.createElement('div')
+      col.className = 'hm-at-col'
+      const name = document.createElement('div')
+      name.className = 'hm-at-name'
+      name.textContent = m.from.name
+      const bubble = document.createElement('div')
+      bubble.className = 'hm-at-bubble'
+      if (m.node) bubble.append(m.node)
+      else bubble.innerHTML = m.html
+      col.append(name, bubble)
+      row.append(avatarEl(m.from, m.side === 'self'), col)
+      body.append(row)
+    }
+    root.append(head, body)
+    return root
+  }
+
+  const place = (anchor, thread) => {
+    const old = anchor.previousElementSibling?.matches?.('.hm-at-group') ? anchor.previousElementSibling : null
+    if (old && old.getAttribute('data-hm-at-sig') === thread.getAttribute('data-hm-at-sig')) return
+    old?.remove()
+    anchor.before(thread)
+    anchor.setAttribute('data-hm-hidden', '')
+  }
+
+  // Outbound: reply notices, aligned from the end with history's notices.
+  function renderOutbound() {
+    const rows = [...document.querySelectorAll("[data-slot='aui_background-result']")]
+    const notices = history.notices
+    if (!rows.length || !notices.length) return
+    const me = who(selfName() || 'hermes')
+    for (let i = 1; i <= Math.min(rows.length, notices.length); i++) {
+      const row = rows[rows.length - i]
+      const n = notices[notices.length - i]
+      if (!n.pairs.length) continue
+      const shown = row.textContent.replace(/\s+/g, ' ').trim()
+      if (n.label && !shown.includes(n.label.replace(/\s+/g, ' ').trim().slice(0, 40))) continue
+      const group = document.createElement('div')
+      group.className = 'hm-at-group'
+      n.pairs.forEach((p, j) => {
+        const peer = who(p.target)
+        const key = `out:${history.sid}:${notices.length - i}:${j}`
+        const msgs = []
+        if (p.message) msgs.push({ from: me, side: 'self', html: lightMarkdown(p.message) })
+        if (p.reply) msgs.push({ from: peer, side: 'peer', html: lightMarkdown(p.reply) })
+        group.append(buildThread(key, peer, me, msgs, p.ok ? (p.reply ? 'replied' : 'delivered') : 'failed'))
+      })
+      group.setAttribute('data-hm-at-sig', `${history.stamp}:${notices.length - i}:${profiles.size}:${[...profiles.values()].filter(p => p.avatar).length}`)
+      place(row, group)
+    }
+  }
+
+  // Inbound: the app's "Message from X" note (+ the folded reply after it).
+  function renderInbound() {
+    const me = who(selfName() || 'hermes')
+    for (const note of document.querySelectorAll("[data-slot='aui_agent-message-note']:not([data-hm-hidden])")) {
+      const sender = (note.querySelector('.wrap-anywhere')?.textContent || '').replace(/^Message from\s*/, '').trim()
+      const peer = profiles.get(agentKeyOf(sender)) || [...profiles.values()].find(p => p.name === sender) || { name: sender, avatar: null }
+      const bodyEl = note.querySelector('details > div')
+      const msgs = []
+      if (bodyEl) msgs.push({ from: peer, side: 'peer', node: bodyEl.cloneNode(true) })
+
+      // The bot's answer, folded by the app as "Replied to X · show reply".
+      const turn = note.closest("[data-slot='aui_user-message-root']")
+      let replyNotice = null
+      for (let el = turn?.nextElementSibling, hops = 0; el && hops < 3; el = el.nextElementSibling, hops++) {
+        if (el.matches("[data-slot='aui_user-message-root']")) break
+        const d = [...el.querySelectorAll('details')].find(x => x.querySelector('summary')?.textContent.trim() === 'show reply')
+        if (d) {
+          replyNotice = d.parentElement
+          break
+        }
+      }
+      const replyBody = replyNotice?.querySelector('details > div')
+      if (replyBody) msgs.push({ from: me, side: 'self', node: replyBody.cloneNode(true) })
+
+      const idx = [...document.querySelectorAll("[data-slot='aui_agent-message-note']")].indexOf(note)
+      const thread = buildThread(`in:${sessionId() || ''}:${idx}`, peer, me, msgs, replyBody ? 'replied' : 'received')
+      thread.setAttribute('data-hm-at-sig', `${msgs.length}:${peer.avatar ? 1 : 0}`)
+      note.before(thread)
+      note.setAttribute('data-hm-hidden', '')
+      replyNotice?.setAttribute('data-hm-hidden', '')
+      replyNotice?.setAttribute('data-hm-at-merged', '')
+    }
+  }
+
+  // Inbound threads are rebuilt when the app re-renders the note (the hidden
+  // attribute disappears with it); stale ones are dropped here.
+  const sweep = () => {
+    for (const t of document.querySelectorAll('.hm-at[data-hm-at^="in:"]')) {
+      const next = t.nextElementSibling
+      if (!next?.matches?.("[data-slot='aui_agent-message-note'][data-hm-hidden]")) t.remove()
+    }
+    for (const g of document.querySelectorAll('.hm-at-group')) {
+      if (!g.nextElementSibling?.matches?.("[data-slot='aui_background-result']")) g.remove()
+    }
+  }
+
+  const stampOf = () =>
+    `${document.querySelectorAll("[data-slot='aui_background-result']").length}`
+
+  async function refreshHistory() {
+    const sid = sessionId()
+    const stamp = `${sid}:${stampOf()}`
+    if (!sid || (history.sid === sid && history.stamp === stamp) || fetching) return
+    fetching = request('session.history', { session_id: sid })
+      .then(res => {
+        history = { sid, stamp, notices: exchangesFromHistory(res?.messages) }
+      })
+      .catch(() => {
+        history = { sid, stamp, notices: [] }
+      })
+      .finally(() => {
+        fetching = null
+        schedule()
+      })
+  }
+
+  const render = () => {
+    sweep()
+    renderInbound()
+    if (document.querySelector("[data-slot='aui_background-result']")) {
+      refreshHistory()
+      renderOutbound()
+    }
+  }
+
+  let frame = 0
+  let timer = 0
+  function schedule() {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(() => {
+      clearTimeout(timer)
+      timer = setTimeout(render, 120)
+    })
+  }
+
+  const observer = new MutationObserver(records => {
+    for (const r of records) {
+      const t = r.target
+      if (t?.closest?.('.hm-at, .hm-at-group')) continue
+      schedule()
+      return
+    }
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+  for (const l of listen || []) onDispose(l(() => {
+    history = { sid: null, stamp: '', notices: [] }
+    schedule()
+  }))
+  loadProfiles()
+  schedule()
+
+  onDispose(() => {
+    observer.disconnect()
+    cancelAnimationFrame(frame)
+    clearTimeout(timer)
+    for (const el of document.querySelectorAll('.hm-at, .hm-at-group')) el.remove()
+    for (const el of document.querySelectorAll("[data-slot='aui_agent-message-note'][data-hm-hidden], [data-slot='aui_background-result'][data-hm-hidden], [data-hm-at-merged]")) {
+      el.removeAttribute('data-hm-hidden')
+      el.removeAttribute('data-hm-at-merged')
+    }
+  })
+}
+// ─── end bot-to-bot threads ─────────────────────────────────────────────────
+
 // ─── Plugin ─────────────────────────────────────────────────────────────────
 
 export default {
@@ -1742,6 +2131,16 @@ export default {
       onDispose: fn => ctx.onDispose(fn)
     })
     ctx.register({ id: 'reply-bar', area: COMPOSER_AREAS.top, render: () => jsx(ReplyBar, {}) })
+
+    // Bot-to-bot conversations: one compact row that opens into bubbles.
+    createAgentThreads({
+      request: (method, params) => host.request(method, params),
+      sessionId: () => host.state.focusedSessionId?.get?.() || host.state.activeSessionId?.get?.() || null,
+      selfName: () => host.state.focusedSessionProfile?.get?.() || host.state.profile?.get?.() || 'hermes',
+      label: (key, ...args) => t(key, ...args),
+      listen: [host.state.focusedSessionId, host.state.activeSessionId].filter(a => a?.listen).map(a => fn => a.listen(fn)),
+      onDispose: fn => ctx.onDispose(fn)
+    })
     ctx.register({
       id: 'reply-send',
       area: COMPOSER_AREAS.middleware,

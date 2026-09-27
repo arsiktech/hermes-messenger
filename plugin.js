@@ -305,6 +305,114 @@ html[data-hm-style='bubbles'] [data-role='assistant'] [data-slot='aui_msg-action
   justify-content: flex-start !important;
 }
 
+/* ── Reactions, Telegram-style ───────────────────────────────────────────
+   The app draws a landed reaction as a bare emoji in the action row, so it
+   floats among copy/retry icons. Here it becomes a pill tucked under its
+   bubble: your own reaction filled with your accent, the agent's neutral. */
+html[data-hm-style='bubbles'] {
+  --hm-react-own: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 16%, transparent);
+  --hm-react-own-line: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 38%, transparent);
+  --hm-react-other: color-mix(in srgb, var(--ui-base, #000) 6%, transparent);
+  --hm-react-other-line: color-mix(in srgb, var(--ui-base, #000) 10%, transparent);
+}
+
+/* Agent messages: the reacted slot leads the footer, right under the bubble. */
+html[data-hm-style='bubbles'] [data-role='assistant'] button[data-slot='aui_msg-reactions'][data-reacted] {
+  order: -2;
+  margin: 0.3125rem 0 0 0.25rem;
+  align-self: flex-start;
+}
+html[data-hm-style='bubbles'] [data-role='assistant'] div:has(> button[data-slot='aui_msg-reactions'][data-reacted]) > [data-slot='aui_turn-duration'] {
+  align-self: center;
+  margin-top: 0.3125rem;
+}
+html[data-hm-style='bubbles'] button[data-slot='aui_msg-reactions'][data-reacted] {
+  width: auto !important;
+  height: 1.75rem !important;
+  padding: 0 0.5rem !important;
+  border-radius: 999px !important;
+  background: var(--hm-react-own) !important;
+  box-shadow: inset 0 0 0 0.0625rem var(--hm-react-own-line) !important;
+  transition: transform 0.25s var(--hm-spring), background 0.2s var(--hm-ease) !important;
+}
+html[data-hm-style='bubbles'] button[data-slot='aui_msg-reactions'][data-reacted]:hover {
+  background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 24%, transparent) !important;
+  transform: scale(1.06);
+}
+html[data-hm-style='bubbles'] button[data-slot='aui_msg-reactions'][data-reacted] > span {
+  gap: 0.25rem !important;
+  font-size: 1rem !important;
+}
+
+/* Your messages: each reaction its own pill, right-aligned under the bubble. */
+html[data-hm-style='bubbles'] span[data-slot='aui_msg-reactions'] {
+  gap: 0.25rem !important;
+  padding: 0.3125rem 0.25rem 0.125rem !important;
+}
+html[data-hm-style='bubbles'] span[data-slot='aui_msg-reactions'] > .reaction-pop {
+  display: inline-flex;
+  align-items: center;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+  background: var(--hm-react-other);
+  box-shadow: inset 0 0 0 0.0625rem var(--hm-react-other-line);
+}
+html[data-hm-style='bubbles'] span[data-slot='aui_msg-reactions'] > button.reaction-pop {
+  background: var(--hm-react-own);
+  box-shadow: inset 0 0 0 0.0625rem var(--hm-react-own-line);
+}
+
+/* The quick picker: a floating capsule of large emoji that grow on hover. */
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) {
+  padding: 0.3125rem 0.375rem !important;
+  gap: 0.125rem !important;
+  border-radius: 999px !important;
+  box-shadow: 0 0.5rem 1.75rem rgb(0 0 0 / 0.18), 0 0 0 0.0625rem color-mix(in srgb, var(--ui-base, #000) 8%, transparent) !important;
+  animation: hm-pop 0.32s var(--hm-spring) both;
+}
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  border-radius: 999px !important;
+  font-size: 1.375rem !important;
+  transition: transform 0.22s var(--hm-spring), background 0.15s var(--hm-ease) !important;
+  animation: hm-pop 0.36s var(--hm-spring) both;
+}
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:nth-child(2) { animation-delay: 0.02s; }
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:nth-child(3) { animation-delay: 0.04s; }
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:nth-child(4) { animation-delay: 0.06s; }
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:nth-child(5) { animation-delay: 0.08s; }
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:nth-child(6) { animation-delay: 0.1s; }
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:nth-child(7) { animation-delay: 0.12s; }
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button:hover {
+  transform: scale(1.28) translateY(-0.125rem);
+  background: transparent !important;
+}
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button[aria-pressed='true'] {
+  background: var(--hm-react-own, color-mix(in srgb, var(--ui-accent) 16%, transparent)) !important;
+}
+html[data-hm] [data-slot='popover-content']:has(> button[aria-label='More emoji']) > button[aria-label='More emoji'] {
+  font-size: 1rem !important;
+  color: var(--ui-text-tertiary, inherit);
+  background: color-mix(in srgb, var(--ui-base, #000) 6%, transparent) !important;
+}
+
+/* A springier landing than the stock pop. */
+html[data-hm] [data-slot='aui_msg-reactions'] .reaction-pop,
+html[data-hm] span[data-slot='aui_msg-reactions'] > .reaction-pop {
+  animation: hm-react-land 0.5s var(--hm-spring) both;
+}
+@keyframes hm-react-land {
+  0% { opacity: 0; transform: scale(0.3) translateY(0.375rem); }
+  55% { opacity: 1; transform: scale(1.22) translateY(-0.125rem); }
+  100% { transform: none; }
+}
+html[data-hm][data-hm-motion='off'] [data-slot='aui_msg-reactions'] .reaction-pop,
+html[data-hm][data-hm-motion='off'] [data-slot='popover-content'] > button { animation: none !important; }
+
 /* A readable column: a conversation, not a spreadsheet. */
 html[data-hm-style='bubbles'] [data-slot='aui_thread-content'] {
   max-width: var(--hm-col);

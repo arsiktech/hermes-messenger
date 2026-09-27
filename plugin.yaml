@@ -1,0 +1,10 @@
+name: hermes-messenger
+version: "1.0.0"
+description: Telegram / iMessage-style chat for Hermes Desktop, with file previews, reactions and a noise filter.
+author: arsiktech
+manifest_version: 1
+kind: standalone
+provides_tools: []
+provides_hooks: []
+provides_middleware: []
+requires_env: []

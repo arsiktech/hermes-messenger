@@ -11,10 +11,12 @@ A Telegram / iMessage-style chat for the [Hermes Agent](https://hermes-agent.nou
 - **Live inbox** above the composer of a bot's Bot Chat. Expand it to see waiting cron reports and teammate messages, their age and a short preview. **Handle now** removes a queued message and opens it in a separate chat; **Skip** removes it without handling it. Both require confirmation and record the original delivery as cancelled, while retaining its message and receipt. Already claimed messages cannot be withdrawn. This feature needs the package backend enabled. Backend changes require a full Hermes restart; wait until active work has stopped before restarting.
 - **Cron reports and kanban alerts** stop masquerading as your own green bubble. They become left-aligned cards named after the job or task ("⏱ Office · Notion triage", "⏸ Task blocked · t_8f7f39c9"), with the model-facing header hidden, markdown and links rendered, and long reports folded behind *Show more*.
 - **Bot-to-bot conversations** collapse to one row ("Hermes ⇄ Quest · 2 messages · replied"). Tap it to read the exchange as a small chat: what your bot asked, then the teammate's reply, with names and avatars. The raw "Message Agent" JSON and background-process notices disappear.
-- **Questions and command approvals** look like chat: an agent bubble with tappable reply chips, and Run / Always allow / Reject as capsule buttons.
+- **Questions and command approvals** look like chat: an agent bubble with tappable reply chips, and Run / Always allow / Reject as capsule buttons. Long custom answers and URLs wrap inside the question card; the answer grows to a capped height and then scrolls without truncating the text.
+- **Attention cues.** Replies that appear to ask for your input get a **Needs you** badge. Explicit no-action/stale notices and repeated replies fold into one line in Calm, or hide in Results. This is a wording heuristic, not a reliable task-state classifier; use All to inspect the original replies.
+- **Automatic system notes** are neutral expandable lines instead of your outgoing bubbles; Results hides them until you peek.
 - **A noise filter** with three levels, switched from the status bar:
-  - **All**: everything, as stock Hermes shows it.
-  - **Calm** (default): tool calls, thinking and background notices stay visible but faded. Hover one to read it.
+  - **All**: no noise filtering. Messenger bubble, card and thread presentation still applies.
+  - **Calm** (default): tool calls, thinking and background notices stay visible but faded. Hover one to read it. No-action replies collapse to expandable summaries.
   - **Results**: only answers and things that need you. Approvals, clarifying questions and generated images are never hidden. Hold **⌥ / Alt** to peek at the hidden work.
 - **A typing bubble** that follows the app's real busy state, so you can tell the agent is working even when Results mode hides the work.
 - **Motion.** New messages spring in; history loads and session switches stay still. Respects *Reduce motion*.
@@ -53,6 +55,14 @@ Settings stay in plugin storage. The manifest declares no agent tools, hooks or 
 ## Compatibility
 
 Built and tested against Hermes Desktop **0.21.x**. If a future Hermes version renames a `data-slot`, the affected style stops applying and the stock look shows through. Please open an issue if that happens.
+
+## Verification and known limits
+
+The repository includes a synthetic browser regression for long clarification answers; see [tests/README.md](tests/README.md). It uses the real plugin CSS and a local Hermes Desktop stylesheet, exercises typing and scrolling, and checks desktop/phone widths in both themes. It does not submit real answers or touch inbox deliveries.
+
+The inbox scope/failure corrections have separate reviewed synthetic-host evidence. Real Desktop loading, authenticated cross-profile routing, remote connections and live Handle now/Skip remain separate acceptance checks; a public source release does not prove them. A shape-avatar thread uses the host SDK renderer when available and falls back to a saved asset or initial otherwise.
+
+See [CHANGELOG.md](CHANGELOG.md) for the feature roll-up.
 
 ## License
 

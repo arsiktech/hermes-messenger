@@ -11,13 +11,13 @@
  *   • Inbox strip: a live view of this Bot Chat's waiting deliveries, with
  *     Handle now / Skip for a still-queued one (confirm first).
  *
- * Mostly presentation: it restyles the app's stable `data-slot` hooks and
- * never edits message content. Two exceptions, both via the plugin's own
+ * Mostly presentation: it restyles the app's stable `data-slot` hooks without
+ * rewriting stored conversation messages. Two exceptions, via the plugin's own
  * dashboard backend (dashboard/inbox_api.py): it reads the Bot Chat delivery
  * queue, and on your confirmed Handle now / Skip it closes that one queued
  * delivery as cancelled (the sender gets a receipt) — Handle now then opens
- * the message in a new chat. Disable it in Capabilities → Plugins and the
- * app is exactly as before.
+ * the message in a new chat. Disabling restores the stock presentation;
+ * it does not undo previous delivery cancellations or side-chat submissions.
  *
  * Plain ESM, loaded uncompiled. Only @hermes/plugin-sdk and react/* imports.
  */
@@ -775,10 +775,23 @@ html[data-hm-style='bubbles'] [data-slot='composer-root'] [data-slot='composer-s
 
 html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) {
   width: min(100%, 36rem);
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: stretch;
   gap: 0.5rem;
 }
+/* Content-sized textareas must not set the implicit grid's min-content
+   width. One long URL otherwise widens every option beyond the card. */
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'],
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] :is([data-clarify-batch-question], [role='group']) {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
 html[data-hm-style='bubbles'] [data-slot='clarify-inline'] {
+  box-sizing: border-box;
+  width: 100%;
   max-width: min(100%, 36rem);
   padding: 0.75rem 0.875rem 0.875rem;
   border: 0.0625rem solid var(--hm-in-stroke);
@@ -850,8 +863,14 @@ html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [role='group'] button
 /* "Other": the chip is the field; no box inside a box. */
 html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [data-slot='textarea'] {
   box-sizing: border-box;
-  width: auto;
+  flex: 1 1 0%;
+  width: 0;
   min-width: 0;
+  max-width: 100%;
+  max-height: 10rem;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
   min-height: 1.5rem;
   margin: 0;
   padding: 0.125rem 0;
@@ -864,7 +883,8 @@ html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [data-slot='textarea'
   box-shadow: none;
   outline: none;
 }
-html[data-hm-style='bubbles'] [data-slot='clarify-inline'] > [data-slot='textarea'] {
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] > [data-slot='textarea'],
+html[data-hm-style='bubbles'] [data-slot='clarify-inline'] [data-clarify-batch-question] > [data-slot='textarea'] {
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 22%, transparent);

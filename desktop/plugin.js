@@ -882,7 +882,7 @@ html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !impor
 
 .hm-reply-btn {
   position: fixed; z-index: 60; display: grid; place-items: center;
-  width: 1.75rem; height: 1.75rem; padding: 0; border: 0.0625rem solid var(--hm-in-stroke, rgb(0 0 0 / 0.08));
+  width: 1.75rem; height: 1.75rem; box-sizing: border-box; line-height: 0; padding: 0; border: 0.0625rem solid var(--hm-in-stroke, rgb(0 0 0 / 0.08));
   border-radius: 999px; background: var(--ui-bg-primary, #fff); color: var(--ui-text-secondary, #666);
   box-shadow: 0 0.125rem 0.5rem rgb(0 0 0 / 0.12); cursor: pointer;
   opacity: 0; pointer-events: none; transform: scale(0.85);
@@ -890,6 +890,7 @@ html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !impor
 }
 .hm-reply-btn[data-show] { opacity: 1; pointer-events: auto; transform: none; }
 .hm-reply-btn:hover { color: var(--hm-out-bg, var(--ui-accent)); }
+.hm-reply-btn svg { display: block; width: 0.875rem; height: 0.875rem; margin: auto; }
 .hm-quote-pill {
   position: fixed; z-index: 61; display: inline-flex; align-items: center; gap: 0.375rem;
   height: 2rem; padding: 0 0.75rem; border: 0; border-radius: 999px;
@@ -1624,9 +1625,15 @@ function createReplies({ setReply, label, onDispose }) {
     hovered = bubble
     const r = bubble.getBoundingClientRect()
     const size = 28
-    const left = whoseOf(bubble) === 'my' ? r.left - size - 6 : r.right + 6
+    const gap = 8
+    const left = whoseOf(bubble) === 'my' ? r.left - size - gap : r.right + gap
+    // Vertically centred on the part of the bubble you can see, like a
+    // messenger's swipe-to-reply arrow — not hanging off its bottom corner.
+    const top = Math.max(r.top, 4)
+    const bottom = Math.min(r.bottom, innerHeight - 4)
+    const mid = bottom > top ? (top + bottom) / 2 : r.top + r.height / 2
     btn.style.left = `${Math.round(Math.max(4, Math.min(left, innerWidth - size - 4)))}px`
-    btn.style.top = `${Math.round(Math.max(4, r.bottom - size - 2))}px`
+    btn.style.top = `${Math.round(Math.max(4, Math.min(mid - size / 2, innerHeight - size - 4)))}px`
     btn.setAttribute('data-show', '')
   }
   const onOver = e => {
@@ -1636,7 +1643,10 @@ function createReplies({ setReply, label, onDispose }) {
       clearTimeout(hideTimer)
       return
     }
-    const bubble = el.closest(BUBBLES)
+    let bubble = el.closest(BUBBLES)
+    // Nothing to reply to on automatic system notes or system cards.
+    const turn = bubble?.closest("[data-slot='aui_user-message-root']")
+    if (turn && (turn.hasAttribute('data-hm-nudge') || turn.hasAttribute('data-hm-sys') || (typeof isSysNudge === 'function' && isSysNudge(turn)))) bubble = null
     if (bubble && pill.hasAttribute('data-show')) return
     if (bubble) {
       showBtn(bubble)

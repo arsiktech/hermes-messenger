@@ -88,9 +88,35 @@ def _bot_chat_session(home: Path) -> str | None:
         return None
 
 
+def _stuck_check(home: Path):
+    """Return a function telling whether a WAITING record can never be taken.
+
+    The bot only claims records pinned to its CURRENT chat lease/live session
+    (``bot_live_delivery._matches``). A record queued for an earlier lease —
+    e.g. before an app restart — is skipped forever. When the current owner is
+    unknown (bot offline), nothing is called stuck.
+    """
+    try:
+        from tools import bot_live_delivery as bld
+        owner = bld.find_canonical_live_owner(home)
+        if not owner:
+            return lambda rec: False
+        current = bld._owner(home, owner)
+    except Exception:
+        return lambda rec: False
+
+    def stuck(rec: dict[str, Any]) -> bool:
+        try:
+            return not bld._matches(home, rec, current)
+        except Exception:
+            return False
+    return stuck
+
+
 @router.get("/inbox")
 def inbox() -> dict[str, Any]:
     home = _home()
+    is_stuck = _stuck_check(home)
     root = home / _DIR
     now = time.time_ns()
     pending: list[dict[str, Any]] = []
@@ -121,6 +147,7 @@ def inbox() -> dict[str, Any]:
                 "from": info["from"],
                 "handle": info.get("handle", ""),
                 "preview": _preview(info["body"]),
+                "stuck": status == "queued" and isinstance(rec.get("owner"), dict) and is_stuck(rec),
             })
     # Handled one first, then waiting ones in the order the bot will take them.
     pending.sort(key=lambda r: (r["status"] != "claimed", r["sequence"] or 0))

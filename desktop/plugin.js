@@ -323,6 +323,8 @@ html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
 .hm-inbox-from { min-width: 0; overflow: hidden; color: var(--ui-text-primary); font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
 .hm-inbox-age { flex: none; margin-left: auto; color: var(--ui-text-secondary); font-variant-numeric: tabular-nums; }
 .hm-inbox-item[data-status='claimed'] .hm-inbox-age { color: #34a853; }
+.hm-inbox-item[data-stuck] .hm-inbox-age { color: #d4453c; font-weight: 600; }
+.hm-inbox-stuck { margin-top: 0.1875rem; color: #d4453c; font-size: 0.6875rem; line-height: 1rem; }
 .hm-inbox-preview { overflow: hidden; color: var(--ui-text-secondary); font-size: 0.75rem; line-height: 1.125rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hm-inbox-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin-top: 0.3125rem; }
 .hm-inbox-q { flex-basis: 100%; color: var(--ui-text-primary); font-size: 0.75rem; line-height: 1.125rem; }
@@ -1034,6 +1036,9 @@ const LOCALES = {
     scheduledJob: 'Scheduled job',
     inboxTitle: 'Inbox',
     inboxWaiting: n => `${n} waiting`,
+    inboxStuckCount: n => `${n} stuck`,
+    inboxStuckAge: a => `stuck · ${a}`,
+    inboxStuckHint: 'Hermes will never pick this up: it was queued for an earlier session (before a restart). Handle it now or skip it.',
     inboxHandling: 'handling 1',
     inboxOldest: a => `oldest ${a}`,
     inboxAge: a => `waiting ${a}`,
@@ -1111,6 +1116,9 @@ const LOCALES = {
     scheduledJob: 'Задание по расписанию',
     inboxTitle: 'Входящие',
     inboxWaiting: n => `ждут: ${n}`,
+    inboxStuckCount: n => `застряли: ${n}`,
+    inboxStuckAge: a => `застряло · ${a}`,
+    inboxStuckHint: 'Hermes никогда его не возьмёт: оно было поставлено в очередь для прежней сессии (до перезапуска). Разберите сейчас или пропустите.',
     inboxHandling: 'обрабатывается 1',
     inboxOldest: a => `старшее ${a}`,
     inboxAge: a => `ждёт ${a}`,
@@ -2004,13 +2012,15 @@ function InboxStrip() {
   const ask = useValue($inboxAsk)
   if (!box || !box.items.length) return null
   const handling = box.items.find(i => i.status === 'claimed')
-  const waiting = box.items.filter(i => i.status === 'queued')
+  const waiting = box.items.filter(i => i.status === 'queued' && !i.stuck)
+  const stuck = box.items.filter(i => i.status === 'queued' && i.stuck)
   const oldest = waiting[0]
   const kindIcon = k => (k === 'cron' ? '⏱' : k === 'agent' ? '🤖' : k === 'kanban' ? '▦' : '✉')
   const summary = [
     waiting.length ? t('inboxWaiting', waiting.length) : null,
     handling ? t('inboxHandling') : null,
-    oldest ? t('inboxOldest', inboxAge(oldest.created_at)) : null
+    oldest ? t('inboxOldest', inboxAge(oldest.created_at)) : null,
+    stuck.length ? t('inboxStuckCount', stuck.length) : null
   ].filter(Boolean).join(' · ')
   return jsxs('div', {
     className: 'hm-inbox',
@@ -2036,6 +2046,7 @@ function InboxStrip() {
               jsxs('div', {
                 className: 'hm-inbox-item',
                 'data-status': i.status,
+                'data-stuck': i.stuck ? '' : undefined,
                 key: i.id,
                 children: [
                   jsx('span', { className: 'hm-inbox-pos', children: i.status === 'claimed' ? '▶' : String(n + (handling ? 0 : 1)) }),
@@ -2049,11 +2060,12 @@ function InboxStrip() {
                           jsx('span', { className: 'hm-inbox-from', children: i.from || t('inboxUnknown') }),
                           jsx('span', {
                             className: 'hm-inbox-age',
-                            children: i.status === 'claimed' ? t('inboxNow', inboxAge(i.claimed_at)) : t('inboxAge', inboxAge(i.created_at))
+                            children: i.status === 'claimed' ? t('inboxNow', inboxAge(i.claimed_at)) : i.stuck ? t('inboxStuckAge', inboxAge(i.created_at)) : t('inboxAge', inboxAge(i.created_at))
                           })
                         ]
                       }),
                       jsx('div', { className: 'hm-inbox-preview', children: i.preview }),
+                      i.stuck && jsx('div', { className: 'hm-inbox-stuck', children: t('inboxStuckHint') }),
                       box.actions && i.status === 'queued' && jsx(InboxActions, { item: i, ask: ask && ask.id === i.id ? ask : null, t })
                     ]
                   })

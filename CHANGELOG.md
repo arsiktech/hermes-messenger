@@ -1,5 +1,12 @@
 # Changelog
 
+## Bot-message attribution fallback
+
+- Recognize Bot Mode envelopes with parenthesized display names when the host leaves them as ordinary user bubbles. The parser uses the final handle suffix rather than treating the first parenthesis as a handle.
+- Render a centered, attributed incoming thread without changing stored messages or hiding the recipient's subsequent reply. Remote connection labels are retained and do not borrow a local bot's avatar.
+- Ordinary mentions, quoted replies and malformed envelopes remain unchanged; HTML in a message body is escaped. Disabling restores the original presentation.
+- Attribution is inferred from the text envelope, as in the host; it is not an authentication signal or permission grant.
+
 ## Command approval presentation
 
 - Separate header, exact-command preview and action footer; opaque surfaces in both inline and floating placements.

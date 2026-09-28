@@ -48,6 +48,15 @@ node tests/approval-layout.mjs desktop/plugin.js .test-output/approvals
 
 60 synthetic checks cover command retention, bounds, readable action ordering, at-least-40px hit areas (current design uses 44px), keyboard traversal, overflow notices, cleanup, and absent/disabled controls. The test uses native DOM structure and real plugin CSS/reading-aid code; it neither executes displayed commands nor dispatches approval responses. The native permission menu and permanent-approval dialog remain owned by Hermes and require separate live integration acceptance.
 
+## Bot-message attribution
+
+```bash
+HERMES_SOURCE=/path/to/hermes-agent \
+node tests/agent-attribution.mjs desktop/plugin.js .test-output/agent-attribution
+```
+
+17 synthetic checks cover parenthesized/nested sender names, remote identities, literal HTML escaping, preserved body text, non-matching human prose/quotes, stable card counts, recycled DOM rows and disable cleanup. The actual thread renderer runs against a synthetic roster. No real messages or delivery records are read.
+
 ## Limits
 
 This is a DOM-contract layout fixture, not the hydrated React clarify component or a live Hermes session. It does not prove answer submission, server authentication, screen-reader output, or the live app's floating-composer layout. Screenshots intentionally show synthetic questions rather than user data.

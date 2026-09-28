@@ -381,6 +381,8 @@ html[data-hm-motion='off'] .hm-inbox-parked { animation: none; }
 /* ── Bot-to-bot threads ────────────────────────────────────────────────── */
 .hm-at-group { display: grid; justify-items: center; gap: 0.375rem; margin: 0.25rem 0; }
 .hm-at { width: min(88%, 40rem); margin: 0.25rem auto; align-self: center; }
+[data-hm-agent-fallback] { align-items: stretch !important; }
+[data-hm-agent-fallback] > :not(.hm-at) { display: none !important; }
 .hm-at:not([data-open]) { width: fit-content; max-width: min(88%, 40rem); }
 .hm-at-head {
   display: inline-flex; align-items: center; gap: 0.5rem; max-width: 100%;
@@ -2353,6 +2355,14 @@ const AT_NOISE_LINE = /^(↻ Resumed session|Model restored from session|session
 const SYS_NUDGE = /^\[(System|SYSTEM)\s*:/
 const isSysNudge = root => SYS_NUDGE.test((root?.querySelector?.('.composer-human-message')?.textContent || '').trim())
 
+// Narrow fallback for Bot Mode envelopes the host did not recognize. The
+// handle suffix, not the first parenthesis, terminates the display name.
+// This is display attribution from text, not authentication or tool authority.
+function parseFallbackAgentMessage(text) {
+  const match = /^Message from 🤖[ \t]+([^\r\n]{1,200}?)\s+\(@([a-z0-9][a-z0-9_-]{0,63})(?:@([a-zA-Z0-9][a-zA-Z0-9_-]{0,63}))?\):[ \t]*([\s\S]*)$/u.exec(String(text || '').trim())
+  return match ? { name: match[1].trim(), handle: match[2], connection: match[3] || '', body: match[4] } : null
+}
+
 function agentKeyOf(value) {
   return String(value || '').trim().replace(/^@/, '').replace(/@[^@]*$/, '').split('/').pop().toLowerCase()
 }
@@ -2703,9 +2713,47 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
       })
   }
 
+  // Some host versions leave parenthesized sender names as human bubbles.
+  // Render those envelopes ourselves; leave subsequent assistant messages
+  // alone because their delivery destination is not established by the prefix.
+  const fallbacks = new Map()
+  let fallbackSequence = 0
+  const clearFallback = (root, state) => {
+    state.thread.remove()
+    root.removeAttribute('data-hm-agent-fallback')
+    fallbacks.delete(root)
+  }
+  function renderFallbackInbound() {
+    for (const [root, state] of fallbacks) if (!root.isConnected) clearFallback(root, state)
+    for (const root of document.querySelectorAll("[data-slot='aui_user-message-root']")) {
+      const old = fallbacks.get(root)
+      const bubble = root.querySelector('.composer-human-message')
+      const raw = bubble?.textContent || ''
+      const parsed = root.querySelector("[data-slot='aui_agent-message-note']") ? null : parseFallbackAgentMessage(raw)
+      if (!parsed) {
+        if (old) clearFallback(root, old)
+        continue
+      }
+      const me = who(selfName() || 'hermes')
+      // A remote handle must not borrow the identity/avatar of a local bot.
+      const peer = parsed.connection
+        ? { name: `${parsed.name} (@${parsed.handle}@${parsed.connection})`, avatar: null }
+        : profiles.get(parsed.handle) || { name: parsed.name, avatar: null }
+      const sig = JSON.stringify([raw, me.name, me.avatar, me.face, peer.name, peer.avatar, peer.face])
+      if (old?.sig === sig && old.thread.isConnected) continue
+      const key = old?.key || `raw:${sessionId() || ''}:${++fallbackSequence}`
+      old?.thread.remove()
+      const thread = buildThread(key, peer, me, [{ from: peer, side: 'peer', html: lightMarkdown(parsed.body) }], 'received')
+      root.prepend(thread)
+      root.setAttribute('data-hm-agent-fallback', '')
+      fallbacks.set(root, { sig, key, thread })
+    }
+  }
+
   const render = () => {
     sweep()
     renderInbound()
+    renderFallbackInbound()
     if (document.querySelector("[data-slot='aui_background-result']")) {
       refreshHistory()
       renderOutbound()
@@ -2730,7 +2778,7 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
       return
     }
   })
-  observer.observe(document.body, { childList: true, subtree: true })
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
   for (const l of listen || []) onDispose(l(() => {
     history = { sid: null, stamp: '', notices: [] }
     schedule()
@@ -2742,6 +2790,7 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
     observer.disconnect()
     cancelAnimationFrame(frame)
     clearTimeout(timer)
+    for (const [root, state] of fallbacks) clearFallback(root, state)
     for (const el of document.querySelectorAll('.hm-at, .hm-at-group')) el.remove()
     for (const el of document.querySelectorAll("[data-slot='aui_agent-message-note'][data-hm-hidden], [data-slot='aui_background-result'][data-hm-hidden], [data-hm-at-merged]")) {
       el.removeAttribute('data-hm-hidden')

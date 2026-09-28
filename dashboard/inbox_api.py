@@ -147,6 +147,9 @@ def inbox() -> dict[str, Any]:
                 "from": info["from"],
                 "handle": info.get("handle", ""),
                 "preview": _preview(info["body"]),
+                # Only the currently handled message is mirrored in full.
+                **({"message": str(rec.get("message") or ""), "body": info["body"]}
+                   if status == "claimed" else {}),
                 "stuck": status == "queued" and isinstance(rec.get("owner"), dict) and is_stuck(rec),
             })
     # Handled one first, then waiting ones in the order the bot will take them.

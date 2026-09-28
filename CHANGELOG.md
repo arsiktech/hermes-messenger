@@ -1,5 +1,12 @@
 # Changelog
 
+## Current incoming message visibility
+
+- Show the full claimed input in the focused Bot Chat while it is being handled, with sender attribution. Expand an existing matching source thread rather than creating a second copy. The temporary live view is removed on settlement, scope switch, failure or disposal; it never writes to the conversation.
+- Claimed inbox items link to their chat view. Waiting-time guidance is omitted when there are no queued items.
+- GET /inbox now returns full text only for claimed records. Reads do not claim, settle, reorder or resend a delivery.
+- Backend reload is required for full text. An older running backend displays a clearly labelled preview rather than pretending it is complete.
+
 ## Bot-message attribution fallback
 
 - Recognize Bot Mode envelopes with parenthesized display names when the host leaves them as ordinary user bubbles. The parser uses the final handle suffix rather than treating the first parenthesis as a handle.

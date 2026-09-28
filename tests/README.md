@@ -57,6 +57,16 @@ node tests/agent-attribution.mjs desktop/plugin.js .test-output/agent-attributio
 
 17 synthetic checks cover parenthesized/nested sender names, remote identities, literal HTML escaping, preserved body text, non-matching human prose/quotes, stable card counts, recycled DOM rows and disable cleanup. The actual thread renderer runs against a synthetic roster. No real messages or delivery records are read.
 
+## Current incoming message
+
+```bash
+HERMES_SOURCE=/path/to/hermes-agent \
+node tests/current-delivery.mjs desktop/plugin.js .test-output/current-delivery
+PYTHONDONTWRITEBYTECODE=1 python -B tests/test_inbox_current.py -v
+```
+
+The frontend checks immediate in-chat display, full body retention, mobile scrolling, two visible panes, scope switches/stale results, native-source handoff, preview-only compatibility and cleanup. The Python test needs FastAPI and exercises GET directly with two injected temporary homes, verifying claimed-only full text and unchanged delivery files. It does not prove authenticated host routing. No test consumes a real inbox item.
+
 ## Limits
 
 This is a DOM-contract layout fixture, not the hydrated React clarify component or a live Hermes session. It does not prove answer submission, server authentication, screen-reader output, or the live app's floating-composer layout. Screenshots intentionally show synthetic questions rather than user data.

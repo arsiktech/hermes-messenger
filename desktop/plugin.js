@@ -912,6 +912,20 @@ html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:las
 html[data-hm-style='bubbles'] form:has(> [data-slot='clarify-inline']) > div:last-child > [data-slot='button']:not([type='submit']) { color: var(--ui-text-secondary); }
 html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !important; }
 
+/* Current incoming message: a read-only input visible beside the response. */
+.hm-current {
+  align-self: flex-start; box-sizing: border-box; width: min(100%, 42rem);
+  margin: 0.75rem 0; padding: 0.875rem 1rem;
+  border: 1px solid var(--hm-in-stroke); border-left: 3px solid var(--ui-accent);
+  border-radius: 0.875rem; background: linear-gradient(var(--hm-in-bg), var(--hm-in-bg)), var(--ui-bg-primary);
+  color: var(--ui-text-primary);
+}
+.hm-current-label { margin-bottom: 0.375rem; font-size: 0.6875rem; font-weight: 600; color: var(--ui-text-secondary); }
+.hm-current-from { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+.hm-current-body { max-height: min(26rem, 50dvh); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.875rem; line-height: 1.5; }
+.hm-current-body:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.hm-current-note { margin-top: 0.5rem; font-size: 0.6875rem; line-height: 1.4; color: var(--ui-text-secondary); }
+
 /* ── Replies & quotes ─────────────────────────────────────────────────── */
 
 .hm-reply-btn {
@@ -1122,6 +1136,10 @@ const LOCALES = {
     inboxStuckAge: a => `stuck · ${a}`,
     inboxStuckHint: 'Hermes will never pick this up: it was queued for an earlier session (before a restart). Handle it now or skip it.',
     inboxHandling: 'handling 1',
+    inboxReadCurrent: 'Read current message in chat',
+    currentHandling: 'Incoming message · handling now',
+    currentLiveCopy: 'Live inbox view — not a new message',
+    currentPreviewOnly: 'Preview only: this server has not loaded full-message support yet. Restart Hermes after active work finishes.',
     inboxOldest: a => `oldest ${a}`,
     inboxAge: a => `waiting ${a}`,
     inboxNow: a => `handling now · ${a}`,
@@ -1213,6 +1231,10 @@ const LOCALES = {
     inboxStuckAge: a => `застряло · ${a}`,
     inboxStuckHint: 'Hermes никогда его не возьмёт: оно было поставлено в очередь для прежней сессии (до перезапуска). Разберите сейчас или пропустите.',
     inboxHandling: 'обрабатывается 1',
+    inboxReadCurrent: 'Прочитать текущее сообщение в чате',
+    currentHandling: 'Входящее сообщение · обрабатывается',
+    currentLiveCopy: 'Из текущей очереди — не новое сообщение',
+    currentPreviewOnly: 'Только фрагмент: сервер ещё не загрузил поддержку полного текста. Перезапустите Hermes после завершения текущей работы.',
     inboxOldest: a => `старшее ${a}`,
     inboxAge: a => `ждёт ${a}`,
     inboxNow: a => `обрабатывается · ${a}`,
@@ -2215,6 +2237,98 @@ async function runInboxAction(item, action, t) {
   }
 }
 
+// ─── Current incoming message (read-only live view) ──────────────────────────
+function currentDeliveryTranscript(box) {
+  const visible = e => !!e && e.getClientRects().length > 0 && !e.closest('[data-pane-hidden], [aria-hidden="true"]')
+  const focused = host.state.focusedSessionId?.get?.()
+  const active = host.state.activeSessionId?.get?.()
+  const anchors = [...document.querySelectorAll('[data-session-anchor]')].filter(e => {
+    const id = e.getAttribute('data-session-anchor')
+    return visible(e) && (id === `session-tile:${box.sessionId}` || (id === 'workspace' && focused && focused === active))
+  })
+  const underFocus = document.activeElement?.closest?.('[data-session-anchor]')
+  const anchor = anchors.includes(underFocus) ? underFocus : anchors.length === 1 ? anchors[0] : null
+  return anchor?.querySelector("[data-slot='aui_thread-content']") || null
+}
+
+function createCurrentDelivery({ read, listen, current, locate, label, onDispose }) {
+  let card = null, marked = null, marker = null, signature = '', frame = 0
+  const norm = text => String(text || '').replace(/\s+/g, ' ').trim()
+  const plain = text => { const d = document.createElement('div'); d.innerHTML = lightMarkdown(text); return norm(d.textContent) }
+  const unmark = () => {
+    marked?.removeAttribute('data-hm-current-delivery')
+    marker?.remove(); marked = null; marker = null
+  }
+  const clear = () => { card?.remove(); card = null; signature = ''; unmark() }
+  const render = () => {
+    const box = read()
+    if (!box || box.key !== current()?.key) return clear()
+    const item = box.items.find(i => i.status === 'claimed' && i.session_id === box.sessionId)
+    const transcript = item && locate(box)
+    if (!item || !transcript) return clear()
+    const full = typeof item.message === 'string'
+    const text = typeof item.body === 'string' ? item.body : item.message || item.preview || ''
+    // Prefer the real attributed transcript message once it is present.
+    // Sender + entire body must match, never a truncated preview alone.
+    let original = null
+    if (full) {
+      for (const root of transcript.querySelectorAll("[data-slot='aui_user-message-root']")) {
+        if (norm(root.querySelector('.composer-human-message')?.textContent) === norm(item.message)) {
+          original = root.querySelector('.hm-at'); if (original) break
+        }
+      }
+      if (!original) for (const thread of transcript.querySelectorAll('.hm-at')) {
+        const matches = [...thread.querySelectorAll('.hm-at-msg[data-side="peer"]')].some(row =>
+          norm(row.querySelector('.hm-at-name')?.textContent) === norm(item.from) &&
+          norm(row.querySelector('.hm-at-bubble')?.textContent) === plain(text))
+        if (matches) { original = thread; break }
+      }
+    }
+    if (original) {
+      card?.remove(); card = null; signature = ''
+      if (marked !== original) {
+        unmark(); marked = original
+        marked.setAttribute('data-hm-current-delivery', item.id)
+        marker = document.createElement('div'); marker.className = 'hm-current-label'; marker.textContent = label('currentHandling')
+        marked.prepend(marker)
+        if (!marked.hasAttribute('data-open')) marked.querySelector('.hm-at-head')?.click()
+      }
+      return
+    }
+    unmark()
+    const sig = JSON.stringify([box.key, item.id, item.from, text, full])
+    if (card?.isConnected && transcript.contains(card) && signature === sig) return
+    card?.remove()
+    card = document.createElement('article'); card.className = 'hm-current'
+    card.setAttribute('data-hm-current-delivery', item.id)
+    const status = document.createElement('div'); status.className = 'hm-current-label'; status.textContent = label('currentHandling')
+    const sender = document.createElement('div'); sender.className = 'hm-current-from'; sender.textContent = item.from || label('inboxUnknown')
+    const body = document.createElement('div'); body.className = 'hm-current-body'; body.tabIndex = 0; body.textContent = text
+    const note = document.createElement('div'); note.className = 'hm-current-note'; note.textContent = label(full ? 'currentLiveCopy' : 'currentPreviewOnly')
+    card.append(status, sender, body, note)
+    const response = [...transcript.querySelectorAll("[data-slot='aui_response-group']")].at(-1)
+    if (response) response.before(card); else transcript.append(card)
+    signature = sig
+  }
+  const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(render) }
+  const stop = listen(render)
+  const observer = new MutationObserver(records => {
+    if (!records.every(r => r.target?.closest?.('.hm-current, .hm-current-label'))) schedule()
+  })
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+  render()
+  onDispose(() => { stop(); observer.disconnect(); cancelAnimationFrame(frame); clear() })
+}
+
+function jumpToCurrentDelivery(item) {
+  const box = $inbox.get()
+  if (!box || box.key !== inboxDeps?.current().key || item.status !== 'claimed') return
+  const transcript = currentDeliveryTranscript(box)
+  const target = [...(transcript?.querySelectorAll('[data-hm-current-delivery]') || [])].find(e => e.getAttribute('data-hm-current-delivery') === item.id)
+  target?.scrollIntoView({ block: 'center', behavior: 'auto' })
+}
+// ─── end current incoming message ────────────────────────────────────────────
+
 function InboxStrip() {
   const t = usePluginI18n(ID)
   const box = useValue($inbox)
@@ -2280,6 +2394,7 @@ function InboxStrip() {
                         ]
                       }),
                       jsx('div', { className: 'hm-inbox-preview', children: i.preview }),
+                      i.status === 'claimed' && jsx('button', { type: 'button', className: 'hm-inbox-btn', onClick: () => jumpToCurrentDelivery(i), children: t('inboxReadCurrent') }),
                       i.stuck && jsx('div', { className: 'hm-inbox-stuck', children: t('inboxStuckHint') }),
                       box.actions && i.status === 'queued' && jsx(InboxActions, { item: i, ask: ask && ask.id === i.id ? ask : null, t })
                     ]
@@ -2287,7 +2402,7 @@ function InboxStrip() {
                 ]
               })
             ),
-            box.medianWait != null && jsx('div', { className: 'hm-inbox-foot', children: t('inboxMedian', Math.round(box.medianWait)) })
+            waiting.length > 0 && box.medianWait != null && jsx('div', { className: 'hm-inbox-foot', children: t('inboxMedian', Math.round(box.medianWait)) })
           ]
         })
     ]
@@ -3271,6 +3386,11 @@ export default {
         owner: () => host.state.focusedSessionOwner?.get?.() || { profile: host.state.focusedSessionProfile?.get?.() || 'default' },
         watch: [host.state.focusedStoredSessionId, host.state.focusedSessionOwner, host.state.focusedSessionProfile].filter(a => a?.listen).map(a => fn => a.listen(fn)),
         onDispose: fn => ctx.onDispose(fn)
+      })
+      createCurrentDelivery({
+        read: () => $inbox.get(), listen: fn => $inbox.listen(fn),
+        current: () => inboxDeps?.current(), locate: currentDeliveryTranscript,
+        label: key => t(key), onDispose: fn => ctx.onDispose(fn)
       })
       ctx.register({ id: 'inbox-strip', area: COMPOSER_AREAS.top, render: () => jsx(InboxStrip, {}) })
     }

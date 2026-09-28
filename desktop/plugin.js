@@ -952,23 +952,7 @@ html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !impor
 .hm-quote-pill[data-show] { opacity: 1; pointer-events: auto; transform: translate(-50%, -100%); }
 .hm-quote-pill[data-below][data-show] { transform: translate(-50%, 0); }
 
-/* The bar above the input: accent rule, who, one-line excerpt, ✕. */
-.hm-replybar {
-  display: flex; align-items: center; gap: 0.625rem; margin: 0.25rem 0.5rem 0.125rem;
-  padding: 0.375rem 0.25rem 0.375rem 0.625rem;
-  border-left: 0.1875rem solid var(--hm-out-bg, var(--ui-accent));
-  border-radius: 0.375rem; background: color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 7%, transparent);
-  animation: hm-fade 0.18s ease both;
-}
-.hm-replybar-icon { display: grid; color: var(--hm-out-bg, var(--ui-accent)); }
-.hm-replybar-body { flex: 1; min-width: 0; }
-.hm-replybar-who { font-size: 0.75rem; font-weight: 600; line-height: 1.1rem; color: var(--hm-out-bg, var(--ui-accent)); }
-.hm-replybar-text { overflow: hidden; font-size: 0.8125rem; line-height: 1.2rem; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-text-secondary); }
-.hm-replybar-x {
-  display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border: 0; border-radius: 999px;
-  background: transparent; color: var(--ui-text-tertiary); cursor: pointer;
-}
-.hm-replybar-x:hover { background: color-mix(in srgb, var(--ui-base) 8%, transparent); color: var(--ui-text-primary); }
+
 
 /* A sent reply: Telegram-style quote card at the top of your bubble. */
 .hm-quote {
@@ -1124,11 +1108,11 @@ const LOCALES = {
     toast: level => `Showing: ${level}`,
     reply: 'Reply',
     quote: 'Quote',
+    replyDraftUnavailable: 'Focus the source chat before replying. This Desktop must support reading and writing its draft.',
+    replyDraftChanged: 'Your draft changed while adding the reply. It was left untouched; please select Reply again.',
+    replyDraftUnconfirmed: 'Could not confirm the quote was added. Check the draft before sending.',
     you: 'You',
     agent: 'Agent',
-    replyingTo: who => `Replying to ${who}`,
-    quotingFrom: who => `Quoting ${who}`,
-    cancelReply: 'Cancel reply',
     scheduledJob: 'Scheduled job',
     inboxTitle: 'Inbox',
     inboxWaiting: n => `${n} waiting`,
@@ -1218,11 +1202,11 @@ const LOCALES = {
     toast: level => `Показываю: ${level}`,
     reply: 'Ответить',
     quote: 'Цитировать',
+    replyDraftUnavailable: 'Перед ответом откройте исходный чат. Нужна поддержка чтения и записи черновика в Desktop.',
+    replyDraftChanged: 'Черновик изменился во время добавления цитаты. Он сохранён без изменений — выберите ответ ещё раз.',
+    replyDraftUnconfirmed: 'Не удалось подтвердить добавление цитаты. Проверьте черновик перед отправкой.',
     you: 'Вы',
     agent: 'Агент',
-    replyingTo: who => `Ответ: ${who}`,
-    quotingFrom: who => `Цитата: ${who}`,
-    cancelReply: 'Отменить ответ',
     teammate: 'Коллега',
     scheduledJob: 'Задание по расписанию',
     inboxTitle: 'Входящие',
@@ -1290,7 +1274,6 @@ const LOCALES = {
 
 let $settings = atom({ ...DEFAULTS })
 let save = () => {}
-const $reply = atom(null)
 
 function update(patch) {
   const next = { ...$settings.get(), ...patch }
@@ -1689,6 +1672,50 @@ function replyWire({ whose, text }) {
   return `[Replying to ${whose} message: "${clean}"]\n\n`
 }
 
+// Put reply context in the actual draft BEFORE any send route is chosen.
+// Busy Desktop steer currently bypasses composer.middleware (#126917).
+function createReplyDraftWriter({ composer, getScope, notify, label, onDispose }) {
+  let generation = 0, stopped = false
+  onDispose(() => { stopped = true; generation++ })
+  return async (reply, source) => {
+    const mine = ++generation
+    const scope = getScope(source)
+    const valid = () => !stopped && mine === generation && getScope(source)?.key === scope?.key
+    if (!scope || !composer?.getDraft || !composer?.setDraft) {
+      notify(label('replyDraftUnavailable')); return false
+    }
+    try {
+      const before = await composer.getDraft(scope.sessionId)
+      if (!valid()) return false
+      if (typeof before !== 'string') { notify(label('replyDraftUnavailable')); return false }
+      // If typing or another edit overtook the read, leave that newer draft alone.
+      const latest = await composer.getDraft(scope.sessionId)
+      if (!valid()) return false
+      if (latest !== before) { notify(label('replyDraftChanged')); return false }
+      const next = replyWire(reply) + before.replace(REPLY_RE, '')
+      const written = await composer.setDraft(scope.sessionId, next)
+      if (!written) { notify(label('replyDraftUnconfirmed')); return false }
+      // setDraft uses an explicit session address and never sends. Do not move
+      // focus back if the user switched away while its acknowledgement arrived.
+      return true
+    } catch {
+      if (valid()) notify(label('replyDraftUnconfirmed'))
+      return false
+    }
+  }
+}
+
+function replyDraftScope(source) {
+  const state = host.state
+  const runtime = state.focusedSessionId?.get?.() || state.activeSessionId?.get?.()
+  const stored = state.focusedStoredSessionId?.get?.()
+  const anchor = source?.closest?.('[data-session-anchor]')?.getAttribute('data-session-anchor')
+  if (!runtime || !stored || !anchor) return null
+  if (anchor !== `session-tile:${stored}` && !(anchor === 'workspace' && runtime === state.activeSessionId?.get?.())) return null
+  const owner = state.focusedSessionOwner?.get?.() || { profile: state.focusedSessionProfile?.get?.() || 'default' }
+  return { sessionId: runtime, key: `${owner.connectionId || ''}|${owner.profile}|${runtime}` }
+}
+
 function bubbleText(bubble) {
   const clone = bubble.cloneNode(true)
   for (const el of clone.querySelectorAll('.hm-quote, .hm-att, button, [data-hm-hidden]')) el.remove()
@@ -1761,15 +1788,17 @@ function createReplies({ setReply, label, onDispose }) {
   btn.addEventListener('click', () => {
     if (!hovered) return
     const text = clipText(bubbleText(hovered), EXCERPT_MAX)
-    if (text) setReply({ kind: 'reply', whose: whoseOf(hovered), text })
+    if (text) setReply({ kind: 'reply', whose: whoseOf(hovered), text }, hovered)
     hideBtn()
   })
 
   // Select text inside one bubble → a "Quote" pill above the selection.
   let quoteFrom = null
+  let quoteSource = null
   const hidePill = () => {
     pill.removeAttribute('data-show')
     quoteFrom = null
+    quoteSource = null
   }
   const checkSelection = () => {
     const sel = document.getSelection()
@@ -1784,6 +1813,7 @@ function createReplies({ setReply, label, onDispose }) {
     pill.style.top = `${Math.round(below ? r.bottom + 10 : r.top - 10)}px`
     pill.toggleAttribute('data-below', below)
     quoteFrom = { kind: 'quote', whose: whoseOf(a), text: clipText(text, QUOTE_MAX) }
+    quoteSource = a
     hideBtn()
     pill.setAttribute('data-show', '')
   }
@@ -1796,7 +1826,7 @@ function createReplies({ setReply, label, onDispose }) {
   pill.addEventListener('mousedown', e => e.preventDefault())
   pill.addEventListener('click', () => {
     if (!quoteFrom) return
-    setReply(quoteFrom)
+    setReply(quoteFrom, quoteSource)
     document.getSelection()?.removeAllRanges()
     hidePill()
   })
@@ -1997,32 +2027,7 @@ function ChipLabel() {
   })
 }
 
-function ReplyBar() {
-  const t = usePluginI18n(ID)
-  const r = useValue($reply)
-  if (!r) return null
-  const who = t(r.whose === 'my' ? 'you' : 'agent')
-  return jsxs('div', {
-    className: 'hm-replybar',
-    children: [
-      jsx('span', { className: 'hm-replybar-icon', dangerouslySetInnerHTML: { __html: REPLY_SVG } }),
-      jsxs('div', {
-        className: 'hm-replybar-body',
-        children: [
-          jsx('div', { className: 'hm-replybar-who', children: t(r.kind === 'quote' ? 'quotingFrom' : 'replyingTo', who) }),
-          jsx('div', { className: 'hm-replybar-text', children: r.text })
-        ]
-      }),
-      jsx('button', {
-        type: 'button',
-        className: 'hm-replybar-x',
-        'aria-label': t('cancelReply'),
-        onClick: () => $reply.set(null),
-        children: jsx(Codicon, { name: 'close', size: '0.8125rem' })
-      })
-    ]
-  })
-}
+
 
 // ─── Live inbox strip ───────────────────────────────────────────────────────
 // A bot takes Bot Chat deliveries (cron reports, teammate messages) one at a
@@ -3365,18 +3370,18 @@ export default {
       })
     }
 
-    // Replies & quotes: hover ↩ / select → Quote, a bar above the input, and
-    // the reply prepended on send through the official composer middleware.
+    // A visible reply prefix is in the real draft, so idle, busy-steer and
+    // queue paths all preserve it. No hidden reply middleware state.
+    const writeReplyDraft = createReplyDraftWriter({
+      composer: host.composer, getScope: replyDraftScope,
+      notify: message => host.notify({ kind: 'warning', message }),
+      label: key => t(key), onDispose: fn => ctx.onDispose(fn)
+    })
     createReplies({
       label: key => t(key),
-      setReply: r => {
-        $reply.set(r)
-        haptic('selection')
-        host.composer?.focus?.(null)
-      },
+      setReply: (reply, source) => { void writeReplyDraft(reply, source) },
       onDispose: fn => ctx.onDispose(fn)
     })
-    ctx.register({ id: 'reply-bar', area: COMPOSER_AREAS.top, render: () => jsx(ReplyBar, {}) })
 
     // Live inbox: what is still waiting for this bot's Bot Chat.
     if (typeof ctx.rest === 'function') {
@@ -3414,25 +3419,6 @@ export default {
       label: (key, ...args) => t(key, ...args),
       listen: [host.state.focusedSessionId, host.state.activeSessionId].filter(a => a?.listen).map(a => fn => a.listen(fn)),
       onDispose: fn => ctx.onDispose(fn)
-    })
-    ctx.register({
-      id: 'reply-send',
-      area: COMPOSER_AREAS.middleware,
-      data: {
-        handler: draft => {
-          const r = $reply.get()
-          if (!r || !draft?.text?.trim()) return draft
-          $reply.set(null)
-          return { ...draft, text: replyWire(r) + draft.text }
-        }
-      }
-    })
-    const clearReply = () => $reply.set(null)
-    for (const $a of [host.state.focusedSessionId, host.state.activeSessionId]) {
-      if ($a?.listen) ctx.onDispose($a.listen(clearReply))
-    }
-    ctx.addEventListener(window, 'keydown', e => {
-      if (e.key === 'Escape' && $reply.get() && !document.querySelector('[role="dialog"], [role="menu"]')) clearReply()
     })
 
     // Busy state drives the typing bubble.

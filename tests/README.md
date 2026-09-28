@@ -67,6 +67,16 @@ PYTHONDONTWRITEBYTECODE=1 python -B tests/test_inbox_current.py -v
 
 The frontend checks immediate in-chat display, full body retention, mobile scrolling, two visible panes, scope switches/stale results, native-source handoff, preview-only compatibility and cleanup. The Python test needs FastAPI and exercises GET directly with two injected temporary homes, verifying claimed-only full text and unchanged delivery files. It does not prove authenticated host routing. No test consumes a real inbox item.
 
+## Reply context on idle and busy send paths
+
+```bash
+HERMES_SOURCE=/path/to/hermes-agent node tests/reply-draft.cjs
+HERMES_SOURCE=/path/to/hermes-agent \
+node tests/reply-draft-ui.mjs desktop/plugin.js .test-output/reply-draft-ui
+```
+
+The first test exercises the actual draft writer, then bundles the local Desktop `useComposerSubmit` and middleware functions with inert environment dependencies. It checks idle, busy steering, refused-steer queue fallback and attachment-queue branches with synthetic callbacks. It does not submit a real prompt or prove network acceptance. The browser test clicks actual plugin Reply/Quote controls against a synthetic composer SDK, checking visible draft text, preservation, replacement and cancellation-by-editing.
+
 ## Limits
 
 This is a DOM-contract layout fixture, not the hydrated React clarify component or a live Hermes session. It does not prove answer submission, server authentication, screen-reader output, or the live app's floating-composer layout. Screenshots intentionally show synthetic questions rather than user data.

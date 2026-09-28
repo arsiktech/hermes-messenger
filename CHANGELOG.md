@@ -1,5 +1,12 @@
 # Changelog
 
+## Reply context during busy sends
+
+- Reply/Quote now writes its reference into the actual draft through the scoped composer SDK, rather than depending on send middleware that Desktop skips while steering a busy agent. The quote is visible/editable before sending.
+- A new selection replaces the old reference without discarding the typed answer. Detected concurrent edits, missing composers and scope changes fail without overwriting the newer draft. No message is sent automatically.
+- Removed hidden pending-reply state and its stale composer overlay. Removing the visible quote block cancels it.
+- Hermes core is unchanged. Report: [#126917](https://github.com/NousResearch/hermes-agent/issues/126917).
+
 ## Current incoming message visibility
 
 - Show the full claimed input in the focused Bot Chat while it is being handled, with sender attribution. Expand an existing matching source thread rather than creating a second copy. The temporary live view is removed on settlement, scope switch, failure or disposal; it never writes to the conversation.

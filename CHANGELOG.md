@@ -1,5 +1,12 @@
 # Changelog
 
+## Command approval presentation
+
+- Separate header, exact-command preview and action footer; opaque surfaces in both inline and floating placements.
+- Larger controls in native visual/keyboard order (Reject, permissions menu, Run), stacked in narrow panes. No changes to approval choices, policy, confirmation or submission handlers.
+- Bounded, selectable command text with an explicit scroll notice. Keyboard users can focus the preview; plugin teardown restores attributes it added.
+- Added synthetic approval layout checks for light/dark, phone/desktop, inline/floating cards, restricted choices, disabled states, scroll notices and cleanup. These do not execute commands or validate live approval RPCs.
+
 ## Message-flicker correction
 
 - Fixed a visibility feedback loop in duplicate-message filtering. Reading `innerText` from a visible message and then from a hidden message produced different paragraph/list separators, causing the duplicate to alternate between visible and hidden. Classification now reads detached text with explicit block boundaries, independent of layout.

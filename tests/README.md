@@ -38,6 +38,16 @@ node tests/attention-stability.mjs desktop/plugin.js .test-output/attention-stab
 
 This runs the actual attention classifier and plugin CSS against synthetic duplicate replies containing paragraphs, lists and line breaks. It samples classification and the following message's vertical position on 60 animation frames, excluding the first four settling frames. Calm and Results must remain folded/hidden without oscillation; All remains visible. Expansion and cleanup are also checked. The corrected implementation passes 21 checks; the pre-fix version oscillates in all six Calm/Results scenarios. No test contacts a real host.
 
+## Command approval presentation
+
+```bash
+HERMES_SOURCE=/path/to/hermes-agent \
+HERMES_ASSETS=/path/to/Hermes/dist/assets \
+node tests/approval-layout.mjs desktop/plugin.js .test-output/approvals
+```
+
+60 synthetic checks cover command retention, bounds, readable action ordering, at-least-40px hit areas (current design uses 44px), keyboard traversal, overflow notices, cleanup, and absent/disabled controls. The test uses native DOM structure and real plugin CSS/reading-aid code; it neither executes displayed commands nor dispatches approval responses. The native permission menu and permanent-approval dialog remain owned by Hermes and require separate live integration acceptance.
+
 ## Limits
 
 This is a DOM-contract layout fixture, not the hydrated React clarify component or a live Hermes session. It does not prove answer submission, server authentication, screen-reader output, or the live app's floating-composer layout. Screenshots intentionally show synthetic questions rather than user data.

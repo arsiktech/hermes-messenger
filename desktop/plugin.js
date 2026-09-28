@@ -975,68 +975,95 @@ html[data-hm-motion='off'] [data-slot='clarify-inline'] { animation: none !impor
   100% { box-shadow: 0 0 0 0.25rem transparent; }
 }
 
-/* ── Command approvals: same bubble, same capsules as questions ──────── */
+/* ── Command approvals: inspect first, then choose ────────────────────── */
 
-html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'] { max-width: min(100%, 36rem); align-self: flex-start; }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'] {
+  width: 100%; min-width: 0; max-width: min(100%, 40rem); align-self: flex-start;
+  container: hm-approval / inline-size;
+}
 html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'] :is([data-slot='card-stack-surface'], [data-slot='card-stack-edge']) {
   border: 0.0625rem solid var(--hm-in-stroke);
-  border-radius: var(--hm-r) var(--hm-r) var(--hm-r) var(--hm-tail);
-  background: var(--hm-in-bg);
+  border-radius: 1rem;
+  background: linear-gradient(var(--hm-in-bg), var(--hm-in-bg)), var(--ui-bg-primary);
 }
-/* Floating over the transcript it must be opaque: same grey, laid on the page colour. */
 html[data-hm-style='bubbles'] [data-slot='tool-approval-stack'][data-approval-placement='floating'] [data-slot='card-stack-surface'] {
-  background: linear-gradient(var(--hm-in-bg), var(--hm-in-bg)), var(--ui-bg-primary, #fff);
-  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--ui-base) 14%, transparent);
 }
-html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] { animation: hm-pop 0.42s var(--hm-spring) both; transform-origin: 0 100%; }
-/* Header: "Command" reads as the question, the way a question card does. */
+/* Do not animate the approval itself: a queue transition is owned by Hermes. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] { min-width: 0; animation: none; }
 html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > div:first-child {
-  padding: 0.75rem 0.875rem 0;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--ui-text-primary);
+  min-width: 0; gap: 0.625rem; padding: 1rem 1rem 0.75rem;
+  border-bottom: 0.0625rem solid var(--hm-in-stroke);
+  font-size: 0.875rem; font-weight: 600; color: var(--ui-text-primary);
 }
-/* The command: a shaded code block with a visible scroll edge. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > div:first-child > svg {
+  flex-shrink: 0; color: var(--ui-accent);
+}
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > div:first-child > span:last-child:not(:nth-child(2)) {
+  flex-shrink: 0; padding: 0.125rem 0.5rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-base) 6%, transparent);
+  color: var(--ui-text-secondary); font-weight: 500;
+}
+/* Keep the exact command selectable. Wrap long tokens, never ellipsize them.
+   A bounded scrolling area keeps decisions reachable even for huge commands. */
 html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > pre {
-  margin: 0.5rem 0.875rem 0 !important;
-  max-height: 14rem;
-  padding: 0.625rem 0.75rem;
-  border: 0.0625rem solid var(--hm-in-stroke);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--ui-base) 5%, transparent);
-  font-size: 0.75rem;
-  line-height: 1.55;
-  word-break: normal;
-  overflow-wrap: break-word;
-  scrollbar-width: thin;
+  box-sizing: border-box; min-width: 0;
+  margin: 0.875rem 1rem !important;
+  max-height: min(20rem, 42dvh);
+  padding: 0.75rem;
+  border: 0.0625rem solid var(--hm-in-stroke); border-radius: 0.625rem;
+  background: var(--ui-bg-primary); color: var(--ui-text-primary);
+  font-size: 0.8125rem; line-height: 1.6; tab-size: 2;
+  white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+  overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: color-mix(in srgb, var(--ui-base) 35%, transparent) color-mix(in srgb, var(--ui-base) 5%, transparent);
 }
-/* Actions: Run first in your colour, the rest as quiet capsules. */
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > pre::-webkit-scrollbar { width: 0.5rem; height: 0.5rem; }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > pre::-webkit-scrollbar-thumb {
+  border-radius: 999px; background: color-mix(in srgb, var(--ui-base) 35%, transparent);
+}
+/* Preserve native DOM/tab order: Reject, broader permissions menu, Run.
+   No control is hidden, relabelled, auto-focused or assigned new semantics. */
 html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] {
-  justify-content: flex-start;
-  gap: 0.375rem;
-  padding: 0.625rem 0.875rem 0.75rem;
+  display: flex; flex-wrap: wrap; align-items: stretch;
+  justify-content: flex-end; gap: 0.5rem;
+  padding: 0.875rem 1rem 1rem;
+  border-top: 0.0625rem solid var(--hm-in-stroke);
 }
 html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-slot='button'] {
-  height: 2rem;
-  padding: 0 0.875rem;
-  border-radius: 999px;
-  font-size: 0.8125rem;
+  box-sizing: border-box; flex: 1 1 5rem; min-width: 0; max-width: 100%;
+  min-height: 2.75rem; height: auto; margin: 0; padding: 0.5rem 0.625rem;
+  border: 0.0625rem solid var(--hm-in-stroke); border-radius: 0.625rem;
+  font-size: 0.8125rem; line-height: 1.25; white-space: normal; overflow-wrap: anywhere;
+  background: transparent; color: var(--ui-text-secondary);
+}
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-slot='button']:focus-visible {
+  outline: 0.125rem solid var(--ui-accent); outline-offset: 0.1875rem;
 }
 html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-run] {
-  order: -2;
-  background: var(--hm-out-bg, var(--ui-accent));
-  color: var(--hm-out-ink, #fff);
-  box-shadow: 0 0.0625rem 0.125rem rgb(0 0 0 / 0.15);
+  border-color: transparent; font-weight: 600;
+  background: var(--hm-out-bg, var(--ui-accent)); color: var(--hm-out-ink);
 }
-html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] > :not([data-approval-run], [data-approval-deny]) { order: -1; }
-html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-slot='button']:not([data-approval-run], [data-approval-deny]) {
-  border: 0.0625rem solid color-mix(in srgb, var(--hm-out-bg, var(--ui-accent)) 22%, transparent);
-  background: var(--ui-bg-primary, #fff);
-  color: var(--ui-text-primary);
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-deny] {
+  background: var(--ui-bg-primary); color: var(--ui-text-primary);
 }
-/* Reject: plain text like Skip on questions, pushed right; turns red on hover. */
-html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-deny] { margin-left: auto; background: transparent; color: var(--ui-text-secondary) !important; }
-html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-deny]:hover { color: var(--destructive, #d33) !important; background: color-mix(in srgb, var(--destructive, #d33) 8%, transparent); }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-approval-deny]:hover:not(:disabled) {
+  color: var(--destructive); border-color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 8%, var(--ui-bg-primary));
+}
+.hm-approval-hint {
+  margin: -0.25rem 1rem 0.875rem; font-size: 0.75rem; line-height: 1.4;
+  color: var(--ui-text-secondary);
+}
+.hm-approval-hint[hidden] { display: none; }
+html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > pre:focus-visible {
+  outline: 0.125rem solid var(--ui-accent); outline-offset: 0.125rem;
+}
+@container hm-approval (max-width: 24rem) {
+  html[data-hm-style='bubbles'] [data-slot='tool-approval-actions'] [data-slot='button'] { flex-basis: 100%; }
+  html[data-hm-style='bubbles'] [data-slot='tool-approval-card'] > pre { max-height: min(16rem, 32dvh); }
+}
 /* Waiting on you, not typing: hide the typing bubble while an approval is open. */
 html[data-hm-style='bubbles']:has([data-slot='tool-approval-card']:not([aria-hidden])) :is([data-slot='aui_turn-activity'][data-state='active'], [data-slot='aui_response-loading']) { display: none; }
 html[data-hm-motion='off'] [data-slot='tool-approval-card'] { animation: none !important; }
@@ -1102,6 +1129,9 @@ const LOCALES = {
     attnFyi: 'No action',
     attnRepeat: 'Repeated',
     attnShow: 'Show',
+    approvalScroll: 'More command text below — scroll inside the preview to inspect it.',
+    approvalScrollBack: 'Scrollable command preview — scroll up to revisit earlier lines.',
+    approvalCommand: 'Command text',
     sysNudge: 'Automatic system note',
     inboxTake: 'Handle now',
     inboxSkip: 'Skip',
@@ -1190,6 +1220,9 @@ const LOCALES = {
     attnFyi: 'Без действий',
     attnRepeat: 'Повтор',
     attnShow: 'Показать',
+    approvalScroll: 'Ниже есть ещё текст команды — прокрутите область предпросмотра.',
+    approvalScrollBack: 'Команду можно прокручивать — выше находятся предыдущие строки.',
+    approvalCommand: 'Текст команды',
     sysNudge: 'Автоматическое системное сообщение',
     inboxTake: 'Разобрать сейчас',
     inboxSkip: 'Пропустить',
@@ -3044,6 +3077,60 @@ function createAttention({ label, onDispose }) {
 }
 // ─── end attention ──────────────────────────────────────────────────────────
 
+// ─── Approval reading aid ───────────────────────────────────────────────────
+// Presentation only: no command parsing, approval events or request access.
+function createApprovalReadingAid({ label, onDispose }) {
+  const fields = new Map()
+  let frame = 0
+  function update(pre, state) {
+    const overflowing = pre.scrollHeight > pre.clientHeight + 1
+    state.hint.hidden = !overflowing
+    const key = pre.scrollTop + pre.clientHeight < pre.scrollHeight - 2 ? 'approvalScroll' : 'approvalScrollBack'
+    const text = label(key)
+    if (state.hint.textContent !== text) state.hint.textContent = text
+  }
+  const scan = () => {
+    const current = new Set(document.querySelectorAll("[data-slot='tool-approval-card'] > pre"))
+    for (const [pre, state] of fields) if (!current.has(pre)) release(pre, state)
+    for (const pre of current) {
+      let state = fields.get(pre)
+      if (!state) {
+        const hint = document.createElement('p')
+        hint.className = 'hm-approval-hint'
+        state = { hint, tab: pre.getAttribute('tabindex'), aria: pre.getAttribute('aria-label') }
+        state.scroll = () => update(pre, state)
+        fields.set(pre, state)
+        if (state.tab === null) pre.setAttribute('tabindex', '0')
+        if (state.aria === null) pre.setAttribute('aria-label', label('approvalCommand'))
+        pre.after(hint)
+        pre.addEventListener('scroll', state.scroll, { passive: true })
+        sizes.observe(pre)
+      }
+      update(pre, state)
+    }
+  }
+  const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(scan) }
+  const sizes = new ResizeObserver(schedule)
+  const observer = new MutationObserver(records => {
+    if (!records.every(r => r.target?.closest?.('.hm-approval-hint'))) schedule()
+  })
+  function release(pre, state) {
+    pre.removeEventListener('scroll', state.scroll)
+    sizes.unobserve(pre)
+    if (state.tab === null && pre.getAttribute('tabindex') === '0') pre.removeAttribute('tabindex')
+    if (state.aria === null && pre.getAttribute('aria-label') === label('approvalCommand')) pre.removeAttribute('aria-label')
+    state.hint.remove()
+    fields.delete(pre)
+  }
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+  scan()
+  onDispose(() => {
+    observer.disconnect(); sizes.disconnect(); cancelAnimationFrame(frame)
+    for (const [pre, state] of fields) release(pre, state)
+  })
+}
+// ─── end approval reading aid ────────────────────────────────────────────────
+
 // ─── Plugin ─────────────────────────────────────────────────────────────────
 
 export default {
@@ -3148,6 +3235,7 @@ export default {
 
     // Replies that need you get a badge; "no action needed" folds to one line.
     createAttention({ label: key => t(key), onDispose: fn => ctx.onDispose(fn) })
+    createApprovalReadingAid({ label: key => t(key), onDispose: fn => ctx.onDispose(fn) })
 
     // Bot-to-bot conversations: one compact row that opens into bubbles.
     createAgentThreads({

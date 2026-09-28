@@ -676,6 +676,31 @@ html[data-hm-peek] :is(${NOISE}) {
   border-radius: 0.375rem;
 }
 
+/* ── Attention: "Needs you" stands out, "no action needed" folds away ── */
+
+.hm-attn { display: none; }
+html[data-hm-noise='calm'] .hm-attn, html[data-hm-noise='results'] .hm-attn { display: flex; }
+.hm-attn[data-kind='needs'] {
+  align-items: center; gap: 0.375rem; width: fit-content; margin: 0 0 0.25rem;
+  padding: 0.0625rem 0.5rem; border-radius: 999px; background: #e0a526; color: #1b1405;
+  font-size: 0.6875rem; font-weight: 600; line-height: 1.125rem;
+}
+html:is([data-hm-noise='calm'], [data-hm-noise='results']) [data-hm-attn='needs'] [data-slot='aui_assistant-message-content'] {
+  box-shadow: inset 0.1875rem 0 0 #e0a526; border-radius: 0.375rem;
+}
+.hm-attn[data-kind='fyi'] {
+  align-items: center; gap: 0.375rem; width: 100%; box-sizing: border-box; padding: 0.125rem 0.625rem; border: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-base) 5%, transparent); color: var(--ui-text-secondary);
+  font: inherit; font-size: 0.75rem; line-height: 1.25rem; text-align: left; cursor: pointer;
+}
+.hm-attn[data-kind='fyi']:hover { color: var(--ui-text-secondary); }
+.hm-attn[data-kind='fyi']:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 1px; }
+.hm-attn-tag { flex: none; font-weight: 500; color: var(--ui-text-tertiary); }
+.hm-attn-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+html[data-hm-noise='calm'] [data-hm-attn='fyi']:not([data-hm-open]) [data-slot='aui_assistant-message-content'] { display: none !important; }
+html[data-hm-noise='results']:not([data-hm-peek]) [data-hm-attn='fyi'] { display: none !important; }
+html[data-hm-noise='results'][data-hm-peek] [data-hm-attn='fyi'] .hm-attn { display: none; }
+
 /* ── Composer: a rounded pill like a messenger input ──────────────────── */
 
 html[data-hm-style='bubbles'] [data-slot='composer-root'],
@@ -1015,6 +1040,10 @@ const LOCALES = {
     inboxNow: a => `handling now · ${a}`,
     inboxUnknown: 'Delivery',
     inboxMedian: m => `Typical wait today: ${m} min. The bot takes these one at a time when this chat is idle.`,
+    attnNeeds: 'Needs you',
+    attnFyi: 'No action',
+    attnRepeat: 'Repeated',
+    attnShow: 'Show',
     inboxTake: 'Handle now',
     inboxSkip: 'Skip',
     inboxConfirmTake: 'Take this out of the line and open it in a new chat now?',
@@ -1088,6 +1117,10 @@ const LOCALES = {
     inboxNow: a => `обрабатывается · ${a}`,
     inboxUnknown: 'Доставка',
     inboxMedian: m => `Обычное ожидание сегодня: ${m} мин. Бот берёт их по одному, когда чат свободен.`,
+    attnNeeds: 'Нужно ваше решение',
+    attnFyi: 'Без действий',
+    attnRepeat: 'Повтор',
+    attnShow: 'Показать',
     inboxTake: 'Разобрать сейчас',
     inboxSkip: 'Пропустить',
     inboxConfirmTake: 'Убрать из очереди и открыть в новом чате?',
@@ -2574,6 +2607,148 @@ function createSystemCards({ label, openLink, onDispose }) {
 }
 // ─── end system cards ───────────────────────────────────────────────────────
 
+// ─── Attention: which bot replies need the user ──────────────────────────────
+// Bot replies are sorted into three kinds by what they SAY, never guessed from
+// length alone:
+//   needs  — asks the user to decide/approve/answer, or carries a question or
+//            approval card. Never folded; gets a "Needs you" badge.
+//   fyi    — says outright that nothing is needed ("no action needed",
+//            "that alert is stale", "already handled"), is a one-line "I'll
+//            check…" narration, or repeats a reply shown just above.
+//            Folded to one line in Calm, hidden in Results (⌥ to peek).
+//   normal — everything else, untouched.
+// "All" shows every reply exactly as the app draws it.
+
+const ATTN_NEEDS = [
+  /(?<![“"'‘]|\bwhat |\bits )\b(needs?|requires?|waiting (on|for)) (your|you|owner|the owner)\b(?![”"'’])/i,
+  /\byour (approval|decision|confirmation|answer|input|go-ahead|sign-?off|choice)\b/i,
+  /\b(please|could you|can you|would you|do you want|shall i|should i|want me to)\b[^.?!]{0,120}\?/i,
+  /\b(please )(approve|confirm|choose|pick|decide|reply|answer|review|sign in|log in|restore)\b/i,
+  /\b(action required|decision needed|owner decision|owner action)\b(?!\s*(is\s*)?(needed|required)?\s*[:.]?\s*(none|no)\b)/i,
+  /\bwhich (one|option)\b[^.?!]{0,80}\?/i
+]
+const ATTN_FYI = [
+  /\bno (further )?(action|decision|input|reply)s? (is |are )?(needed|required|necessary)\b/i,
+  /\bno (owner|user) (action|decision|input)\b/i,
+  /\bnothing (here |else )?(is )?(needed|required|needs you|for you to do)\b/i,
+  /\bnothing (here )?needs (you|your)\b/i,
+  /\bnothing needs you\b/i,
+  /\bnothing (for you )?to act on\b/i,
+  /\b(duplicate|repeated) (reminder|alert|notice|notification)\b/i,
+  /\balready[- ]handled (alert|notice|warning)\b/i,
+  /\b(this|that|the) (alert|notice|notification|report|message) (is|was) (stale|outdated|superseded|a delayed|already handled|old)\b/i,
+  /\b(was|is) a (delayed|late|stale|duplicate)\b[^.]{0,40}\b(notice|alert|notification|report)\b/i,
+  /\balready (resumed|handled|done|resolved|fixed|recovered|picked up|moved on)\b/i,
+  /\b(you can|safe to) ignore (it|this|that)\b/i,
+  /\bno (new )?(change|changes|news|update|updates)\b[^.]{0,30}\.?$/i
+]
+const NARRATION = /^(i['’]ll|i will|let me|checking|looking|now (checking|looking))\b/i
+
+function classifyAttention(text, hasCard) {
+  if (hasCard) return 'needs'
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (!t) return null
+  if (ATTN_NEEDS.some(r => r.test(t))) {
+    // "No action needed from you" contains "from you"; only an explicit ask
+    // outranks an explicit all-clear.
+    if (!ATTN_FYI.some(r => r.test(t))) return 'needs'
+    if (/\?\s*$/.test(t) || /\byour (approval|decision|confirmation)\b/i.test(t)) return 'needs'
+    return 'fyi'
+  }
+  if (ATTN_FYI.some(r => r.test(t))) return 'fyi'
+  if (NARRATION.test(t) && t.length < 240 && !/\?/.test(t)) return 'fyi'
+  return null
+}
+
+function createAttention({ label, onDispose }) {
+  const open = new Set()
+  const ROOT_SEL = "[data-slot='aui_assistant-message-root']"
+  const textOf = root => {
+    const c = root.querySelector("[data-slot='aui_assistant-message-content']")
+    if (!c) return ''
+    const md = [...c.querySelectorAll(':scope > .aui-md:not([data-slot="aui_reasoning-text"])')]
+    return (md.length ? md.map(m => m.innerText || m.textContent).join('\n') : '').trim()
+  }
+  const firstLine = t => t.replace(/\s+/g, ' ').trim().slice(0, 160)
+
+  function badge(root, kind, text, repeat, key) {
+    let el = root.querySelector(':scope > .hm-attn')
+    if (!kind) return el?.remove()
+    if (el && el.getAttribute('data-kind') === kind && el.getAttribute('data-sig') === key) return
+    el?.remove()
+    if (kind === 'needs') {
+      el = document.createElement('div')
+      el.textContent = '● ' + label('attnNeeds')
+    } else {
+      el = document.createElement('button')
+      el.type = 'button'
+      el.title = label('attnShow')
+      const tag = document.createElement('span')
+      tag.className = 'hm-attn-tag'
+      tag.textContent = (repeat ? '↻ ' + label('attnRepeat') : '✓ ' + label('attnFyi')) + ' ·'
+      const body = document.createElement('span')
+      body.className = 'hm-attn-text'
+      body.textContent = firstLine(text)
+      el.append(tag, body)
+      el.addEventListener('click', () => {
+        const on = !root.hasAttribute('data-hm-open')
+        root.toggleAttribute('data-hm-open', on)
+        on ? open.add(key) : open.delete(key)
+        el.setAttribute('aria-expanded', String(on))
+      })
+      el.setAttribute('aria-expanded', String(open.has(key)))
+    }
+    el.className = 'hm-attn'
+    el.setAttribute('data-kind', kind)
+    el.setAttribute('data-sig', key)
+    root.prepend(el)
+  }
+
+  const scan = () => {
+    const roots = [...document.querySelectorAll(ROOT_SEL)]
+    const seen = []
+    const last = roots[roots.length - 1]
+    for (const root of roots) {
+      const text = textOf(root)
+      const norm = text.replace(/\s+/g, ' ').trim()
+      const hasCard = !!root.querySelector(ACTIONABLE)
+      // The newest reply may still be streaming: leave it alone until it has
+      // settled (the app marks a running turn with data-hm-busy on <html>).
+      const settling = root === last && ROOT.hasAttribute('data-hm-busy')
+      let kind = settling && !hasCard ? null : classifyAttention(text, hasCard)
+      const repeat = !hasCard && norm.length > 40 && seen.slice(-12).includes(norm)
+      if (repeat && kind !== 'needs') kind = 'fyi'
+      if (norm) seen.push(norm)
+      const key = norm.slice(0, 120)
+      if (kind) root.setAttribute('data-hm-attn', kind)
+      else root.removeAttribute('data-hm-attn')
+      if (kind === 'fyi' && open.has(key)) root.setAttribute('data-hm-open', '')
+      else if (kind !== 'fyi') root.removeAttribute('data-hm-open')
+      badge(root, kind, text, repeat && !classifyAttention(text, hasCard), key)
+    }
+  }
+
+  let frame = 0
+  const observer = new MutationObserver(records => {
+    if (records.every(r => r.target?.closest?.('.hm-attn'))) return
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(scan)
+  })
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+  const rootObs = new MutationObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(scan) })
+  rootObs.observe(ROOT, { attributes: true, attributeFilter: ['data-hm-busy'] })
+  scan()
+  onDispose(() => {
+    observer.disconnect()
+    rootObs.disconnect()
+    cancelAnimationFrame(frame)
+    for (const el of document.querySelectorAll('.hm-attn')) el.remove()
+    for (const el of document.querySelectorAll('[data-hm-attn]')) el.removeAttribute('data-hm-attn')
+    for (const el of document.querySelectorAll('[data-hm-open]')) el.removeAttribute('data-hm-open')
+  })
+}
+// ─── end attention ──────────────────────────────────────────────────────────
+
 // ─── Plugin ─────────────────────────────────────────────────────────────────
 
 export default {
@@ -2674,6 +2849,9 @@ export default {
       openLink: url => (window.hermesDesktop?.openExternal ? window.hermesDesktop.openExternal(url) : window.open(url, '_blank')),
       onDispose: fn => ctx.onDispose(fn)
     })
+
+    // Replies that need you get a badge; "no action needed" folds to one line.
+    createAttention({ label: key => t(key), onDispose: fn => ctx.onDispose(fn) })
 
     // Bot-to-bot conversations: one compact row that opens into bubbles.
     createAgentThreads({

@@ -30,6 +30,7 @@ import {
   usePluginI18n,
   useValue
 } from '@hermes/plugin-sdk'
+import * as HermesSDK from '@hermes/plugin-sdk'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 const ID = 'hermes-messenger'
@@ -386,6 +387,9 @@ html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
   color: var(--ui-text-primary); font-size: 0.75rem; font-weight: 600; line-height: 1;
 }
 .hm-at-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hm-at-avatar[data-face] { overflow: visible; border-radius: 0; background: none !important; }
+.hm-at-avatar[data-face] svg { display: block; width: 100%; height: 100%; }
+.hm-at-faces .hm-at-avatar[data-face] + .hm-at-avatar { box-shadow: none; }
 .hm-at-title { overflow: hidden; color: var(--ui-text-primary); font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
 .hm-at-meta { flex: none; color: var(--ui-text-secondary); white-space: nowrap; }
 .hm-at[data-state='failed'] .hm-at-meta { color: #d93b3b; }
@@ -702,6 +706,22 @@ html:is([data-hm-noise='calm'], [data-hm-noise='results']) [data-hm-attn='needs'
 html[data-hm-noise='calm'] [data-hm-attn='fyi']:not([data-hm-open]) [data-slot='aui_assistant-message-content'] { display: none !important; }
 html[data-hm-noise='results']:not([data-hm-peek]) [data-hm-attn='fyi'] { display: none !important; }
 html[data-hm-noise='results'][data-hm-peek] [data-hm-attn='fyi'] .hm-attn { display: none; }
+
+/* System nudges: a small centred note, not the user's bubble. */
+[data-hm-nudge] { align-items: center !important; }
+[data-hm-nudge] > :not(.hm-nudge) { display: none !important; }
+[data-hm-nudge][data-hm-open] .hm-nudge { align-items: flex-start; border-radius: 0.75rem; }
+[data-hm-nudge][data-hm-open] .hm-nudge .hm-attn-text { white-space: normal; overflow: visible; }
+[data-hm-nudge] + div:has(> [data-slot='aui_directive-text']) { display: none !important; }
+.hm-nudge {
+  display: flex; align-items: center; gap: 0.375rem; align-self: center; max-width: min(86%, 36rem);
+  margin: 0.125rem auto; padding: 0.0625rem 0.625rem; border: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-base) 5%, transparent); color: var(--ui-text-secondary);
+  font: inherit; font-size: 0.6875rem; line-height: 1.125rem; text-align: left; cursor: pointer;
+}
+.hm-nudge:hover { color: var(--ui-text-primary); }
+.hm-nudge:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 1px; }
+html[data-hm-noise='results']:not([data-hm-peek]) [data-hm-nudge] { display: none !important; }
 
 /* ── Composer: a rounded pill like a messenger input ──────────────────── */
 
@@ -1049,6 +1069,7 @@ const LOCALES = {
     attnFyi: 'No action',
     attnRepeat: 'Repeated',
     attnShow: 'Show',
+    sysNudge: 'Automatic system note',
     inboxTake: 'Handle now',
     inboxSkip: 'Skip',
     inboxConfirmTake: 'Take this out of the line and open it in a new chat now?',
@@ -1129,6 +1150,7 @@ const LOCALES = {
     attnFyi: 'Без действий',
     attnRepeat: 'Повтор',
     attnShow: 'Показать',
+    sysNudge: 'Автоматическое системное сообщение',
     inboxTake: 'Разобрать сейчас',
     inboxSkip: 'Пропустить',
     inboxConfirmTake: 'Убрать из очереди и открыть в новом чате?',
@@ -2117,6 +2139,12 @@ function InboxActions({ item, ask, t }) {
 const AT_DM_RE = /bot_mode_dm\.py[\s\S]*?\s-p\s+"?([a-z0-9][a-z0-9_-]{0,63})"?\s+chat\b/i
 const AT_NOISE_LINE = /^(↻ Resumed session|Model restored from session|session_id:)/
 
+// Automatic prompts Hermes injects as a "user" turn (e.g. "[System: Your
+// previous response contained only internal reasoning…]"). They are not the
+// user's words, so they must not look like the user's green bubble.
+const SYS_NUDGE = /^\[(System|SYSTEM)\s*:/
+const isSysNudge = root => SYS_NUDGE.test((root?.querySelector?.('.composer-human-message')?.textContent || '').trim())
+
 function agentKeyOf(value) {
   return String(value || '').trim().replace(/^@/, '').replace(/@[^@]*$/, '').split('/').pop().toLowerCase()
 }
@@ -2178,6 +2206,27 @@ const lightMarkdown = s =>
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`\n]+)`/g, '<code>$1</code>')
 
+// Bot faces exactly as the sidebar draws them: the profile's ui_meta shape
+// ('blobatar[:seed[:kind]]') rendered by the SDK's blobatar. The saved
+// avatar.png is only a backfill snapshot and can be stale, so it is used
+// only for photo avatars or when the face cannot be drawn.
+const BLOB_KIND_TRAIT = { round: 0.11, organic: 0.35, boxy: 0.54, capsule: 0.65, nub: 0.745, cloud: 0.825, droplet: 0.8875, hexagon: 0.9325, sun: 0.965, triangle: 0.99 }
+function botFaceSvg(meta, name, size = 44) {
+  const blob = typeof HermesSDK === 'object' ? HermesSDK.blobatarSvg : null
+  const shape = meta?.shape
+  if (typeof blob !== 'function' || meta?.imageKind === 'photo') return null
+  if (!(shape === 'blobatar' || (typeof shape === 'string' && shape.startsWith('blobatar:')))) return null
+  const [, seedPart = '', kind = ''] = shape.split(':')
+  const opts = { size }
+  if (BLOB_KIND_TRAIT[kind] != null) opts.traits = { shape: BLOB_KIND_TRAIT[kind] }
+  try {
+    const svg = blob(seedPart || name || 'agent', opts)
+    return typeof svg === 'string' && svg.trim().startsWith('<svg') ? svg : null
+  } catch {
+    return null
+  }
+}
+
 function createAgentThreads({ request, sessionId, selfName, label, onDispose, listen }) {
   const open = new Set()
   const profiles = new Map() // key → { name, avatar }
@@ -2196,14 +2245,15 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
         const list = res?.profiles || []
         if (!list.length) throw new Error('empty roster')
         for (const p of list) {
-          const title = p.ui_meta?.['hermes-bots']?.title
-          const entry = { name: (typeof title === 'string' && title.trim()) || p.display_name || p.name, avatar: null }
+          const meta = p.ui_meta?.['hermes-bots']
+          const title = meta?.title
+          const entry = { name: (typeof title === 'string' && title.trim()) || p.display_name || p.name, avatar: null, face: botFaceSvg(meta, p.name) }
           profiles.set(p.name.toLowerCase(), entry)
           profiles.set(entry.name.toLowerCase(), entry)
           if (p.display_name) profiles.set(p.display_name.toLowerCase(), entry)
           if (p.is_default) profiles.set('hermes', entry)
           if (p.is_default) profiles.set('default', entry)
-          if (p.has_avatar) {
+          if (p.has_avatar && !entry.face) {
             request('profiles.get_asset', { asset: 'avatar', name: p.name })
               .then(a => {
                 if (a?.found && a.data) {
@@ -2240,7 +2290,10 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
     const a = document.createElement('span')
     a.className = 'hm-at-avatar'
     if (self) a.setAttribute('data-self', '')
-    if (person.avatar) {
+    if (person.face) {
+      a.setAttribute('data-face', '')
+      a.innerHTML = person.face
+    } else if (person.avatar) {
       const img = document.createElement('img')
       img.src = person.avatar
       img.alt = ''
@@ -2353,27 +2406,37 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
       if (bodyEl) msgs.push({ from: peer, side: 'peer', node: bodyEl.cloneNode(true) })
 
       // The bot's answer, folded by the app as "Replied to X · show reply".
+      // A turn can fold into several "Replied to X" rows (e.g. a reasoning-only
+      // step, then the answer): take them all, keep the ones with text.
       const turn = note.closest("[data-slot='aui_user-message-root']")
-      let replyNotice = null
-      for (let el = turn?.nextElementSibling, hops = 0; el && hops < 3; el = el.nextElementSibling, hops++) {
-        if (el.matches("[data-slot='aui_user-message-root']")) break
-        const d = [...el.querySelectorAll('details')].find(x => x.querySelector('summary')?.textContent.trim() === 'show reply')
-        if (d) {
-          replyNotice = d.parentElement
-          break
+      const replyNotices = []
+      const seenReplies = new Set()
+      let replyBody = null
+      for (let el = turn?.nextElementSibling, hops = 0; el && hops < 8; el = el.nextElementSibling, hops++) {
+        if (el.matches("[data-slot='aui_user-message-root']") && !isSysNudge(el)) break
+        for (const d of el.querySelectorAll('details')) {
+          if (d.querySelector('summary')?.textContent.trim() !== 'show reply') continue
+          replyNotices.push(d.parentElement)
+          const b = d.querySelector(':scope > div')
+          const txt = (b?.textContent || '').replace(/\s+/g, ' ').trim()
+          if (b && txt && !seenReplies.has(txt)) {
+            seenReplies.add(txt)
+            msgs.push({ from: me, side: 'self', node: b.cloneNode(true) })
+            replyBody = b
+          }
         }
       }
-      const replyBody = replyNotice?.querySelector('details > div')
-      if (replyBody) msgs.push({ from: me, side: 'self', node: replyBody.cloneNode(true) })
-      if (replyBody) hideEchoes(turn, replyBody)
+      for (const m of msgs.slice(1)) if (m.side === 'self') hideEchoes(turn, m.node)
 
       const idx = [...document.querySelectorAll("[data-slot='aui_agent-message-note']")].indexOf(note)
-      const thread = buildThread(`in:${sessionId() || ''}:${idx}`, peer, me, msgs, replyBody ? 'replied' : 'received')
-      thread.setAttribute('data-hm-at-sig', `${msgs.length}:${peer.avatar ? 1 : 0}`)
+      const thread = buildThread(`in:${sessionId() || ''}:${idx}`, peer, me, msgs, replyBody || replyNotices.length ? 'replied' : 'received')
+      thread.setAttribute('data-hm-at-sig', `${msgs.length}:${peer.avatar || peer.face ? 1 : 0}`)
       note.before(thread)
       note.setAttribute('data-hm-hidden', '')
-      replyNotice?.setAttribute('data-hm-hidden', '')
-      replyNotice?.setAttribute('data-hm-at-merged', '')
+      for (const rn of replyNotices) {
+        rn.setAttribute('data-hm-hidden', '')
+        rn.setAttribute('data-hm-at-merged', '')
+      }
     }
   }
 
@@ -2386,8 +2449,8 @@ function createAgentThreads({ request, sessionId, selfName, label, onDispose, li
     const reply = norm(replyBody.textContent)
     if (!reply) return
     let el = turn?.nextElementSibling
-    for (let hops = 0; el && hops < 6; el = el.nextElementSibling, hops++) {
-      if (el.matches("[data-slot='aui_user-message-root']")) break
+    for (let hops = 0; el && hops < 8; el = el.nextElementSibling, hops++) {
+      if (el.matches("[data-slot='aui_user-message-root']") && !isSysNudge(el)) break
       const rows = el.matches("[data-slot='aui_assistant-message-root']") ? [el] : [...el.querySelectorAll("[data-slot='aui_assistant-message-root']")]
       for (const row of rows) {
         const body = row.querySelector("[data-slot='aui_assistant-message-content']")
@@ -2716,7 +2779,42 @@ function createAttention({ label, onDispose }) {
     root.prepend(el)
   }
 
+  function markNudges() {
+    for (const u of document.querySelectorAll("[data-slot='aui_user-message-root']")) {
+      const sys = isSysNudge(u)
+      let pill = u.querySelector(':scope > .hm-nudge')
+      if (!sys) {
+        if (u.hasAttribute('data-hm-nudge')) u.removeAttribute('data-hm-nudge')
+        pill?.remove()
+        continue
+      }
+      if (!u.hasAttribute('data-hm-nudge')) u.setAttribute('data-hm-nudge', '')
+      if (pill) continue
+      const raw = (u.querySelector('.composer-human-message')?.textContent || '').trim()
+      const text = raw.replace(SYS_NUDGE, '').replace(/\]\s*$/, '').trim()
+      pill = document.createElement('button')
+      pill.type = 'button'
+      pill.className = 'hm-nudge'
+      pill.title = label('attnShow')
+      pill.setAttribute('aria-expanded', 'false')
+      const tag = document.createElement('span')
+      tag.className = 'hm-attn-tag'
+      tag.textContent = '⚙ ' + label('sysNudge') + ' ·'
+      const body = document.createElement('span')
+      body.className = 'hm-attn-text'
+      body.textContent = text
+      pill.append(tag, body)
+      pill.addEventListener('click', () => {
+        const on = !u.hasAttribute('data-hm-open')
+        u.toggleAttribute('data-hm-open', on)
+        pill.setAttribute('aria-expanded', String(on))
+      })
+      u.prepend(pill)
+    }
+  }
+
   const scan = () => {
+    markNudges()
     const roots = [...document.querySelectorAll(ROOT_SEL)]
     const seen = []
     const last = roots[roots.length - 1]
@@ -2742,7 +2840,7 @@ function createAttention({ label, onDispose }) {
 
   let frame = 0
   const observer = new MutationObserver(records => {
-    if (records.every(r => r.target?.closest?.('.hm-attn'))) return
+    if (records.every(r => r.target?.closest?.('.hm-attn, .hm-nudge'))) return
     cancelAnimationFrame(frame)
     frame = requestAnimationFrame(scan)
   })
@@ -2754,7 +2852,8 @@ function createAttention({ label, onDispose }) {
     observer.disconnect()
     rootObs.disconnect()
     cancelAnimationFrame(frame)
-    for (const el of document.querySelectorAll('.hm-attn')) el.remove()
+    for (const el of document.querySelectorAll('.hm-attn, .hm-nudge')) el.remove()
+    for (const el of document.querySelectorAll('[data-hm-nudge]')) el.removeAttribute('data-hm-nudge')
     for (const el of document.querySelectorAll('[data-hm-attn]')) el.removeAttribute('data-hm-attn')
     for (const el of document.querySelectorAll('[data-hm-open]')) el.removeAttribute('data-hm-open')
   })

@@ -29,6 +29,15 @@ The script writes synthetic screenshots and `results.json`, and exits nonzero on
 
 The initial implementation failed the URL and unbroken-token cases at every width in both themes. The corrected implementation passes all 42 cases. Existing reply/quote, thread, attention, system-card and system-note checks were also rerun privately: 64 checks passed. Those older fixtures contain local conversation examples and are deliberately not published.
 
+## Message-flicker regression
+
+```bash
+HERMES_SOURCE=/path/to/hermes-agent \
+node tests/attention-stability.mjs desktop/plugin.js .test-output/attention-stability
+```
+
+This runs the actual attention classifier and plugin CSS against synthetic duplicate replies containing paragraphs, lists and line breaks. It samples classification and the following message's vertical position on 60 animation frames, excluding the first four settling frames. Calm and Results must remain folded/hidden without oscillation; All remains visible. Expansion and cleanup are also checked. The corrected implementation passes 21 checks; the pre-fix version oscillates in all six Calm/Results scenarios. No test contacts a real host.
+
 ## Limits
 
 This is a DOM-contract layout fixture, not the hydrated React clarify component or a live Hermes session. It does not prove answer submission, server authentication, screen-reader output, or the live app's floating-composer layout. Screenshots intentionally show synthetic questions rather than user data.

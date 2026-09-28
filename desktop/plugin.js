@@ -2917,7 +2917,16 @@ function createAttention({ label, onDispose }) {
     const c = root.querySelector("[data-slot='aui_assistant-message-content']")
     if (!c) return ''
     const md = [...c.querySelectorAll(':scope > .aui-md:not([data-slot="aui_reasoning-text"])')]
-    return (md.length ? md.map(m => m.innerText || m.textContent).join('\n') : '').trim()
+    // innerText depends on layout: hiding a duplicate changes paragraph/list
+    // separators, making the next scan see different text and show it again.
+    // Read a detached copy with explicit block breaks so visibility cannot
+    // feed back into classification. Never mutate the actual message nodes.
+    return md.map(m => {
+      const copy = m.cloneNode(true)
+      for (const br of copy.querySelectorAll('br')) br.replaceWith('\n')
+      for (const block of copy.querySelectorAll('p, div, li, pre, blockquote, h1, h2, h3, h4, h5, h6, tr')) block.after('\n')
+      return copy.textContent || ''
+    }).join('\n').trim()
   }
   const firstLine = t => t.replace(/\s+/g, ' ').trim().slice(0, 160)
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## Message-flicker correction
+
+- Fixed a visibility feedback loop in duplicate-message filtering. Reading `innerText` from a visible message and then from a hidden message produced different paragraph/list separators, causing the duplicate to alternate between visible and hidden. Classification now reads detached text with explicit block boundaries, independent of layout.
+- Added a synthetic frame-by-frame stability regression for paragraphs, lists and line breaks in All / Calm / Results, including expansion and teardown. The six flickering scenarios reproduce on the old code and stay stable with the fix.
+- This changes only presentation; stored messages and delivery queues are untouched.
+
 ## Long-answer correction and feature roll-up
 
 ### Fixed

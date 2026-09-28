@@ -1,12 +1,21 @@
-"""Hermes Messenger — read-only view of a profile's Bot Chat inbox.
+"""Hermes Messenger — live view of a profile's Bot Chat inbox, with two actions.
 
 The Bot Chat inbox (``<home>/runtime/bot_live_delivery/*.json``) holds
 deliveries for a profile's Bot Chat: cron reports and teammate messages. The
 bot takes them one at a time, only when its chat is idle, so they can wait.
-This endpoint lists what is still waiting so Desktop can show it live.
 
-Strictly read-only: it never claims, reorders, cancels or rewrites a record.
-Delivery is at-most-once by design; touching records here could break that.
+GET /inbox lists what is still waiting. Two user actions take a WAITING
+(``queued``) delivery out of the line, through the delivery module's own lock
+and terminal-receipt API so at-most-once still holds:
+
+* POST /inbox/{id}/take — the user handles it now in a side chat; the full
+  message is returned so Desktop can open that chat with it.
+* POST /inbox/{id}/skip — the user drops it unhandled.
+
+Both end the delivery as ``cancelled`` with a plain reason, so whoever sent it
+(a cron job, another bot) gets a definite answer instead of waiting forever.
+A delivery the bot has already claimed is never touched. The record itself,
+message included, is kept as the permanent receipt.
 """
 from __future__ import annotations
 
@@ -17,9 +26,15 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
+
+_REASONS = {
+    "take": "The user took this message out of the Bot Chat queue to handle it in a separate chat. "
+            "It was not answered in Bot Chat; do not resend.",
+    "skip": "The user skipped this message in the Bot Chat queue; it was not handled. Do not resend.",
+}
 
 _DIR = Path("runtime") / "bot_live_delivery"
 _CRON = re.compile(r'^\s*\[Cronjob "([^"]*)" output — [^\]]*\]\s*')
@@ -96,7 +111,7 @@ def inbox() -> dict[str, Any]:
                 continue
             info = _describe(str(rec.get("message") or ""))
             pending.append({
-                "id": str(rec.get("delivery_id") or path.stem)[:16],
+                "id": str(rec.get("delivery_id") or path.stem),
                 "sequence": rec.get("sequence") or 0,
                 "status": status,
                 "session_id": rec.get("session_id") or "",
@@ -115,4 +130,57 @@ def inbox() -> dict[str, Any]:
         "median_wait_min_24h": round(statistics.median(waits), 1) if waits else None,
         "handled_24h": len(waits),
         "now": now / 1e9,
+        "actions": True,
     }
+
+
+def _withdraw(delivery_id: str, action: str) -> dict[str, Any]:
+    """Take one WAITING delivery out of the line and close it as ``cancelled``.
+
+    The delivery module only lets a claimed record reach a terminal state, so
+    this claims it under the module's own lock (exactly like the bot would),
+    then files the terminal receipt through ``complete_delivery``. Holding the
+    lock for the claim means the bot can never take the same record: it only
+    ever claims ``queued`` ones.
+    """
+    try:
+        from tools import bot_live_delivery as bld
+    except ImportError as exc:  # pragma: no cover - older Hermes without the mailbox
+        raise HTTPException(501, "This Hermes version has no Bot Chat inbox.") from exc
+    try:
+        key = bld._delivery_id(delivery_id)
+    except ValueError as exc:
+        raise HTTPException(400, "Unknown message id.") from exc
+    home = _home()
+    with bld._locked(home) as root:
+        path = root / f"{key}.json"
+        record = bld._read(path)
+        if record is None:
+            raise HTTPException(404, "That message is no longer in the inbox.")
+        if record.get("status") != "queued":
+            # Claimed = the bot is already on it; terminal = someone got there first.
+            raise HTTPException(409, "The bot has already started on this message, or it is gone.")
+        record.update(status="claimed", claimed_at=time.time_ns(), withdrawn_by="hermes-messenger")
+        bld._write(path, record)
+    done = bld.complete_delivery(home, key, status="cancelled", error=_REASONS[action], reason="cancelled")
+    info = _describe(str(done.get("message") or ""))
+    return {
+        "ok": True,
+        "action": action,
+        "id": key,
+        "kind": info["kind"],
+        "from": info["from"],
+        "message": str(done.get("message") or ""),
+    }
+
+
+@router.post("/inbox/{delivery_id}/take")
+def take(delivery_id: str) -> dict[str, Any]:
+    return _withdraw(delivery_id, "take")
+
+
+@router.post("/inbox/{delivery_id}/skip")
+def skip(delivery_id: str) -> dict[str, Any]:
+    out = _withdraw(delivery_id, "skip")
+    out.pop("message", None)
+    return out

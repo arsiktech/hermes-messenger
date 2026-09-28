@@ -324,6 +324,15 @@ html[data-hm-motion='off'] .hm-inbox-dot[data-busy] { animation: none; }
 .hm-inbox-age { flex: none; margin-left: auto; color: var(--ui-text-secondary); font-variant-numeric: tabular-nums; }
 .hm-inbox-item[data-status='claimed'] .hm-inbox-age { color: #34a853; }
 .hm-inbox-preview { overflow: hidden; color: var(--ui-text-secondary); font-size: 0.75rem; line-height: 1.125rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hm-inbox-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin-top: 0.3125rem; }
+.hm-inbox-q { flex-basis: 100%; color: var(--ui-text-primary); font-size: 0.75rem; line-height: 1.125rem; }
+.hm-inbox-btn { padding: 0.125rem 0.625rem; border: 0.0625rem solid var(--hm-in-stroke, var(--ui-stroke-tertiary)); border-radius: 999px; background: none; color: var(--ui-text-primary); font: inherit; font-size: 0.6875rem; line-height: 1.125rem; cursor: pointer; }
+.hm-inbox-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--ui-base) 8%, transparent); }
+.hm-inbox-btn:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 1px; }
+.hm-inbox-btn:disabled { opacity: 0.5; cursor: default; }
+.hm-inbox-btn[data-primary] { border-color: transparent; background: var(--ui-accent); color: #fff; }
+.hm-inbox-btn[data-danger] { color: #e5534b; }
+.hm-inbox-note { color: var(--ui-text-secondary); font-size: 0.6875rem; }
 .hm-inbox-foot { padding: 0.375rem 0.25rem 0; color: var(--ui-text-tertiary); font-size: 0.6875rem; }
 
 /* ── System cards (cron reports, kanban alerts) ─────────────────────────── */
@@ -1006,6 +1015,19 @@ const LOCALES = {
     inboxNow: a => `handling now · ${a}`,
     inboxUnknown: 'Delivery',
     inboxMedian: m => `Typical wait today: ${m} min. The bot takes these one at a time when this chat is idle.`,
+    inboxTake: 'Handle now',
+    inboxSkip: 'Skip',
+    inboxConfirmTake: 'Take this out of the line and open it in a new chat now?',
+    inboxConfirmSkip: 'Remove this without handling it? The sender is told it was skipped.',
+    inboxConfirm: 'Confirm',
+    inboxCancel: 'Cancel',
+    inboxWorking: 'Working…',
+    inboxTaken: 'Opened in a new chat.',
+    inboxSkipped: 'Skipped.',
+    inboxGone: 'Too late: the bot already started on it, or it is gone.',
+    inboxFailed: 'That did not work. Nothing was changed.',
+    inboxOpenFailed: 'Taken out of the line, but the new chat did not open. The message is in your message box.',
+    inboxChatTitle: from => `Inbox · ${from}`,
     showMore: 'Show more',
     showLess: 'Show less',
     kb_blocked: 'Task blocked',
@@ -1066,6 +1088,19 @@ const LOCALES = {
     inboxNow: a => `обрабатывается · ${a}`,
     inboxUnknown: 'Доставка',
     inboxMedian: m => `Обычное ожидание сегодня: ${m} мин. Бот берёт их по одному, когда чат свободен.`,
+    inboxTake: 'Разобрать сейчас',
+    inboxSkip: 'Пропустить',
+    inboxConfirmTake: 'Убрать из очереди и открыть в новом чате?',
+    inboxConfirmSkip: 'Удалить без обработки? Отправитель узнает, что сообщение пропущено.',
+    inboxConfirm: 'Подтвердить',
+    inboxCancel: 'Отмена',
+    inboxWorking: 'Выполняется…',
+    inboxTaken: 'Открыто в новом чате.',
+    inboxSkipped: 'Пропущено.',
+    inboxGone: 'Поздно: бот уже взялся за него, или его нет.',
+    inboxFailed: 'Не получилось. Ничего не изменено.',
+    inboxOpenFailed: 'Убрано из очереди, но новый чат не открылся. Сообщение — в поле ввода.',
+    inboxChatTitle: from => `Входящие · ${from}`,
     showMore: 'Показать полностью',
     showLess: 'Свернуть',
     kb_blocked: 'Задача заблокирована',
@@ -1819,8 +1854,10 @@ function ReplyBar() {
 // This strip shows that queue live above the composer of the chat it belongs
 // to. Read-only: the backend (dashboard/inbox_api.py) never touches records.
 
-const $inbox = atom(null) // { sessionId, items, medianWait } | null
+const $inbox = atom(null) // { sessionId, profile, owner, items, medianWait, actions } | null
 const $inboxOpen = atom(false)
+const $inboxAsk = atom(null) // { id, action, busy?, note? }
+let inboxDeps = null // { rest, refresh, ... } set by the poller
 
 function inboxAge(seconds) {
   if (!seconds) return ''
@@ -1828,7 +1865,7 @@ function inboxAge(seconds) {
   return m < 1 ? '<1m' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
-function startInboxPoller({ rest, sessionId, onDispose }) {
+function startInboxPoller({ rest, sessionId, owner, onDispose }) {
   let timer = 0
   let stopped = false
   let failures = 0
@@ -1841,7 +1878,7 @@ function startInboxPoller({ rest, sessionId, onDispose }) {
         failures = 0
         const mine = r?.bot_chat_session_id && r.bot_chat_session_id === sid
         const items = mine ? (r.items || []).filter(i => !i.session_id || i.session_id === sid) : []
-        $inbox.set(mine ? { sessionId: sid, items, medianWait: r.median_wait_min_24h } : null)
+        $inbox.set(mine ? { sessionId: sid, owner: owner?.() || null, items, medianWait: r.median_wait_min_24h, actions: r.actions === true } : null)
       } catch {
         failures++
         $inbox.set(null)
@@ -1852,6 +1889,7 @@ function startInboxPoller({ rest, sessionId, onDispose }) {
     // Backend missing (plugin not enabled) → back off instead of hammering.
     timer = setTimeout(tick, failures ? Math.min(60000, 5000 * 2 ** failures) : 5000)
   }
+  inboxDeps = { rest, refresh: () => { clearTimeout(timer); tick() } }
   tick()
   const vis = () => !document.hidden && (clearTimeout(timer), tick())
   document.addEventListener('visibilitychange', vis)
@@ -1860,13 +1898,77 @@ function startInboxPoller({ rest, sessionId, onDispose }) {
     clearTimeout(timer)
     document.removeEventListener('visibilitychange', vis)
     $inbox.set(null)
+    inboxDeps = null
   })
+}
+
+// The message handed to the side chat: a one-line frame so the bot knows it
+// was pulled out of its Bot Chat queue, then the delivery exactly as it came.
+function inboxChatPrompt(item, message) {
+  return `[Pulled from my Bot Chat inbox to handle here now${item.from ? ` · from ${item.from}` : ''}]\n\n${message}`
+}
+
+// Open a NEW chat with the inbox's bot and send it the message. Same door the
+// Bot roster uses for a first open: create (lazy) → materialize → prompt →
+// show, with the owner socket held across the sequence (#93602).
+async function openInboxChat(owner, title, text) {
+  const profile = owner?.profile || 'default'
+  const route = owner?.connectionId ? { connectionId: owner.connectionId, mode: 'local', profile, targetProfile: profile } : profile
+  const call = (m, p) => (typeof host.requestProfile === 'function' ? host.requestProfile(route, m, p, undefined, { spawnPriority: 'foreground' }) : host.request(m, p))
+  const release = typeof host.retainProfile === 'function' ? await host.retainProfile(route, { spawnPriority: 'foreground' }).catch(() => () => {}) : () => {}
+  try {
+    const res = await call('session.create', { profile, title })
+    const runtime = res?.session_id
+    const stored = res?.stored_session_id
+    if (!runtime || !stored) throw new Error('no session')
+    await call('session.title', { session_id: runtime, title }).catch(() => {})
+    await call('prompt.submit', { session_id: runtime, text })
+    await host.openSession(stored, { profile, intent: 'tab', tabTitle: title, awaitHydration: false })
+  } finally {
+    release()
+  }
+}
+
+async function runInboxAction(item, action, t) {
+  const deps = inboxDeps
+  const box = $inbox.get()
+  if (!deps || !box) return
+  $inboxAsk.set({ id: item.id, action, busy: true })
+  let res
+  try {
+    res = await deps.rest(`/inbox/${encodeURIComponent(item.id)}/${action}`, { method: 'POST', timeoutMs: 15000 })
+  } catch (e) {
+    const gone = /\b(409|404)\b/.test(String(e?.message || e))
+    $inboxAsk.set({ id: item.id, action, note: t(gone ? 'inboxGone' : 'inboxFailed') })
+    deps.refresh()
+    return
+  }
+  if (action === 'skip') {
+    $inboxAsk.set(null)
+    host.notify?.({ kind: 'info', message: t('inboxSkipped') })
+    haptic?.('selection')
+    deps.refresh()
+    return
+  }
+  const text = inboxChatPrompt(item, res?.message || '')
+  $inboxAsk.set(null)
+  deps.refresh()
+  try {
+    await openInboxChat(box.owner, t('inboxChatTitle', item.from || t('inboxUnknown')), text)
+    host.notify?.({ kind: 'info', message: t('inboxTaken') })
+  } catch {
+    // Never lose it: the delivery is already out of the line, so park the
+    // full text in the current message box for the user to send anywhere.
+    await host.composer?.setDraft?.(null, text)
+    host.notify?.({ kind: 'error', message: t('inboxOpenFailed') })
+  }
 }
 
 function InboxStrip() {
   const t = usePluginI18n(ID)
   const box = useValue($inbox)
   const open = useValue($inboxOpen)
+  const ask = useValue($inboxAsk)
   if (!box || !box.items.length) return null
   const handling = box.items.find(i => i.status === 'claimed')
   const waiting = box.items.filter(i => i.status === 'queued')
@@ -1918,7 +2020,8 @@ function InboxStrip() {
                           })
                         ]
                       }),
-                      jsx('div', { className: 'hm-inbox-preview', children: i.preview })
+                      jsx('div', { className: 'hm-inbox-preview', children: i.preview }),
+                      box.actions && i.status === 'queued' && jsx(InboxActions, { item: i, ask: ask && ask.id === i.id ? ask : null, t })
                     ]
                   })
                 ]
@@ -1927,6 +2030,31 @@ function InboxStrip() {
             box.medianWait != null && jsx('div', { className: 'hm-inbox-foot', children: t('inboxMedian', Math.round(box.medianWait)) })
           ]
         })
+    ]
+  })
+}
+
+function InboxActions({ item, ask, t }) {
+  const btn = (label, onClick, extra = {}) =>
+    jsx('button', { type: 'button', className: 'hm-inbox-btn', disabled: !!ask?.busy, onClick, children: label, ...extra })
+  if (ask?.busy) return jsx('div', { className: 'hm-inbox-acts', children: jsx('span', { className: 'hm-inbox-note', children: t('inboxWorking') }) })
+  if (ask && !ask.note) {
+    return jsxs('div', {
+      className: 'hm-inbox-acts',
+      role: 'group',
+      children: [
+        jsx('span', { className: 'hm-inbox-q', children: t(ask.action === 'take' ? 'inboxConfirmTake' : 'inboxConfirmSkip') }),
+        btn(t('inboxConfirm'), () => runInboxAction(item, ask.action, t), ask.action === 'take' ? { 'data-primary': '' } : { 'data-danger': '' }),
+        btn(t('inboxCancel'), () => $inboxAsk.set(null))
+      ]
+    })
+  }
+  return jsxs('div', {
+    className: 'hm-inbox-acts',
+    children: [
+      btn(t('inboxTake'), () => $inboxAsk.set({ id: item.id, action: 'take' }), { 'data-primary': '' }),
+      btn(t('inboxSkip'), () => $inboxAsk.set({ id: item.id, action: 'skip' })),
+      ask?.note && jsx('span', { className: 'hm-inbox-note', children: ask.note })
     ]
   })
 }
@@ -2534,6 +2662,7 @@ export default {
       startInboxPoller({
         rest: (path, opts) => ctx.rest(path, opts),
         sessionId: () => host.state.focusedStoredSessionId?.get?.() || null,
+        owner: () => host.state.focusedSessionOwner?.get?.() || { profile: host.state.focusedSessionProfile?.get?.() || 'default' },
         onDispose: fn => ctx.onDispose(fn)
       })
       ctx.register({ id: 'inbox-strip', area: COMPOSER_AREAS.top, render: () => jsx(InboxStrip, {}) })

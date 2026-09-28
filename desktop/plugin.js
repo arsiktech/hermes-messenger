@@ -8,9 +8,16 @@
  *   • A typing bubble while the agent works, and spring motion for new messages only.
  *   • No sticky prompt clipping the transcript.
  *
- * Pure presentation: it restyles the app's stable `data-slot` hooks and never
- * touches sessions, the backend, or message content. Disable it in
- * Capabilities → Plugins and the app is exactly as before.
+ *   • Inbox strip: a live view of this Bot Chat's waiting deliveries, with
+ *     Handle now / Skip for a still-queued one (confirm first).
+ *
+ * Mostly presentation: it restyles the app's stable `data-slot` hooks and
+ * never edits message content. Two exceptions, both via the plugin's own
+ * dashboard backend (dashboard/inbox_api.py): it reads the Bot Chat delivery
+ * queue, and on your confirmed Handle now / Skip it closes that one queued
+ * delivery as cancelled (the sender gets a receipt) — Handle now then opens
+ * the message in a new chat. Disable it in Capabilities → Plugins and the
+ * app is exactly as before.
  *
  * Plain ESM, loaded uncompiled. Only @hermes/plugin-sdk and react/* imports.
  */

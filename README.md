@@ -8,7 +8,7 @@ A Telegram / iMessage-style chat for the [Hermes Agent](https://hermes-agent.nou
 - **File previews.** Attached images show as thumbnails (click for full size), code and text files show their first lines, audio and video get a player, and everything else gets a typed card. Click a card's name row to reveal the file in Finder.
 - **Reactions** sit under the bubble as small pills, with a compact quick picker.
 - **Reply and quote.** Hover any message and click ↩ to reply to it, or select part of it and click **Quote**. A "Replying to…" bar sits above the input (Esc cancels). The sent message shows a quote card; click it to jump to the original. The agent receives it in the same form as a Telegram reply.
-- **Live inbox** above the composer of a bot's Bot Chat: "Inbox · 3 waiting · handling 1 · oldest 39m". Tap to see each queued cron report or teammate message, its place in line, how long it has waited and a preview. Read-only. Needs the package installed under `~/.hermes/plugins/hermes-messenger` and `hermes plugins enable hermes-messenger` (it ships a tiny backend, `dashboard/inbox_api.py`).
+- **Live inbox** above the composer of a bot's Bot Chat. Expand it to see waiting cron reports and teammate messages, their age and a short preview. **Handle now** removes a queued message and opens it in a separate chat; **Skip** removes it without handling it. Both require confirmation and record the original delivery as cancelled, while retaining its message and receipt. Already claimed messages cannot be withdrawn. This feature needs the package backend enabled. Backend changes require a full Hermes restart; wait until active work has stopped before restarting.
 - **Cron reports and kanban alerts** stop masquerading as your own green bubble. They become left-aligned cards named after the job or task ("⏱ Office · Notion triage", "⏸ Task blocked · t_8f7f39c9"), with the model-facing header hidden, markdown and links rendered, and long reports folded behind *Show more*.
 - **Bot-to-bot conversations** collapse to one row ("Hermes ⇄ Quest · 2 messages · replied"). Tap it to read the exchange as a small chat: what your bot asked, then the teammate's reply, with names and avatars. The raw "Message Agent" JSON and background-process notices disappear.
 - **Questions and command approvals** look like chat: an agent bubble with tappable reply chips, and Run / Always allow / Reject as capsule buttons.
@@ -35,7 +35,7 @@ hermes plugins install arsiktech/hermes-messenger
 
 Then turn it on in **Capabilities → Plugins**. Open its settings from the status bar chip (bottom right) or the command palette under *Messenger*. **⌘⌥F** (Ctrl+Alt+F) cycles All → Calm → Results.
 
-To remove it, disable it in **Capabilities → Plugins**, or run `hermes plugins remove hermes-messenger`. It only changes how the chat looks, so disabling it restores the stock app.
+To disable the chat styling, turn it off in **Capabilities → Plugins**. To remove the package, run `hermes plugins remove hermes-messenger`. Disabling or removing it does not undo earlier inbox actions or delete their retained delivery receipts.
 
 ## How it works
 
@@ -44,9 +44,11 @@ The Desktop half is a single `desktop/plugin.js` with no build step and no depen
 - injects one stylesheet that targets the app's stable `data-slot` hooks;
 - sets a few `data-hm-*` attributes on `<html>` to switch modes;
 - uses a small MutationObserver so only new bubbles animate;
-- for file previews, reads the attached file through the app's own desktop bridge (`readFileText` / `readFileDataUrl`). Nothing leaves your machine.
+- for file previews, reads the selected attachment through the app's desktop bridge (`readFileText` / `readFileDataUrl`).
 
-It never changes messages, sessions or the backend, and makes no network requests. Settings are saved in plugin storage. `plugin.yaml` and the empty `__init__.py` exist only so Hermes can install it as a package; there are no agent tools or hooks.
+The package also includes a backend inbox API. The Desktop component polls it through Hermes' REST bridge for the current profile's pending deliveries. Previews contain message text, so treat the inbox as private chat content. Handle now returns the full selected message to Desktop and opens a side chat; Handle now and Skip change the original queued delivery to cancelled. They do not mean that the bot answered the message. A remote Hermes connection can carry these requests over the configured network connection.
+
+Settings stay in plugin storage. The manifest declares no agent tools, hooks or middleware. Authentication and profile isolation depend on the host integration and must be verified in the supported environment; these source-level descriptions are not an end-to-end privacy guarantee.
 
 ## Compatibility
 
